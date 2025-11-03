@@ -1,34 +1,35 @@
-# main.py → SPAM 24 JAM DI RAILWAY.APP (0 CRASH!)
-import asyncio
-from telethon import TelegramClient
+# main.py → RAILWAY 0 CRASH + 24 JAM!
+from telethon.sync import TelegramClient
+from telethon.sessions import StringSession
 import random, time, os
 
 API_ID   = int(os.getenv('API_ID'))
 API_HASH = os.getenv('API_HASH')
 SESSION  = os.getenv('SESSION')
-GRUPS    = os.getenv('GRUPS').split(',')
+GRUPS    = [g.strip() for g in os.getenv('GRUPS').split(',') if g.strip()]
 
 KATA = [
     "AKUN PREMIUM MASUK BRO! 🔥",
-    "Baru dapet fresh nih!",
+    "Fresh nih cepet ambil!",
     "Siapa cepet dia dapet!",
     "Cek DM ada link",
     "Join dulu baru dapet"
 ]
 
-async def main():
-    client = TelegramClient('jinx', API_ID, API_HASH)
-    await client.start(session=SESSION)
-    print("JINX SPAM 24 JAM JALAN TANPA CRASH!")
+client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 
+print("JINX SPAM ORANG 24 JAM JALAN DI RAILWAY — NO CRASH!")
+
+with client:
+    client.start()
     while True:
         pesan = random.choice(KATA) + f"\n⏰ {time.strftime('%H:%M:%S')}"
         for g in GRUPS:
             try:
-                await client.send_message(g.strip(), pesan)
+                client.send_message(g, pesan)
                 print(f"[{time.strftime('%H:%M:%S')}] TERKIRIM → {g}")
             except:
                 pass
-            await asyncio.sleep(random.randint(60, 180))
-
-asyncio.run(main())
+            delay = random.randint(60, 180)
+            print(f"Tunggu {delay} detik...")
+            time.sleep(delay)
