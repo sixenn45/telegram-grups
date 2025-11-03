@@ -9,11 +9,15 @@ SESSION  = os.getenv('SESSION')
 GRUPS    = [g.strip() for g in os.getenv('GRUPS').split(',') if g.strip()]
 
 KATA = [
-    "AKUN PREMIUM MASUK BRO! 🔥",
-    "Fresh nih cepet ambil!",
-    "Siapa cepet dia dapet!",
-    "Cek DM ada link",
-    "Join dulu baru dapet"
+    "⚡JOIN GRUP INFOSCAMMER @Info_Scammer_Shell2! 🔥",
+    "REKBER ON!! JOIN INFOSCAMMER @Info_Scammer_Shell2 ",
+    "⚡OPEN PEMBELAJARAN TANAM SHELL
+     ⚡DORKING SHELL(FRESHDORK!!
+     ⚡BIKIN TOOLS PHISINK,HACKING,DLL DENGAN AI
+     ⚡MINAT PM @jktblackhat",
+    "⚡MAU BIKIN AUTO SEND KE GRUP OTOMATIS 24JAM?
+      PM @jktblackhat",
+    "JOIM GRUP UNTUK UPDATE INFOSCAMMMER @Info_Scammer_Shell2"
 ]
 
 client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
@@ -30,6 +34,6 @@ with client:
                 print(f"[{time.strftime('%H:%M:%S')}] TERKIRIM → {g}")
             except:
                 pass
-            delay = random.randint(60, 180)
+            delay = random.randint(50, 160)
             print(f"Tunggu {delay} detik...")
             time.sleep(delay)
