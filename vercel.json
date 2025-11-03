@@ -1,0 +1,4 @@
+{
+  "builds": [{ "src": "auto_send.py", "use": "@vercel/python" }],
+  "routes": [{ "src": "/.*", "dest": "auto_send.py" }]
+}
