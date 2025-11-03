@@ -10,18 +10,13 @@ GRUPS    = [g.strip() for g in os.getenv('GRUPS').split(',') if g.strip()]
 
 KATA = [
     "⚡JOIN GRUP INFOSCAMMER @Info_Scammer_Shell2! 🔥",
-    "REKBER ON!! JOIN INFOSCAMMER @Info_Scammer_Shell2",
-
-    "⚡OPEN PEMBELAJARAN TANAM SHELL\n"
-    "⚡DORKING SHELL (FRESH DORK!!)\n"
-    "⚡BIKIN TOOLS PHISING, HACKING DLL DENGAN AI\n"
-    "⚡MINAT PM @jktblackhat",
-
-    "⚡MAU BIKIN AUTO SEND KE GRUP OTOMATIS 24JAM?\n"
-    "PM @jktblackhat",
-
-    "JOIN GRUP UNTUK UPDATE INFO SCAMMER\n"
-    "@Info_Scammer_Shell2"
+    "REKBER ON!! JOIN INFOSCAMMER @Info_Scammer_Shell2",    
+    "⚡OPEN PEMBELAJARAN TANAM SHELL @jktblackhat",
+    "⚡OPEN PEMBELAJARAN DORKING,HACKING,BUAT TOOLS HACK DENGAN AI PM @jktblackhat",
+    "⚡BIKIN TOOLS PHISING, HACKING DLL DENGAN AI pm @jktblackhat",
+    "⚡KAPOK DITIPU? JOIN @Info_Scammer_Shell2",
+    "⚡MAU BIKIN AUTO SEND KE GRUP OTOMATIS 24JAM? PM @jktblackhat",
+    "JOIN GRUP UNTUK UPDATE INFO SCAMMER"
 ]
 
 client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
