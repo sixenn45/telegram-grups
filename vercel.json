@@ -1,4 +1,8 @@
 {
-  "builds": [{ "src": "auto_send.py", "use": "@vercel/python" }],
-  "routes": [{ "src": "/.*", "dest": "auto_send.py" }]
+  "builds": [
+    { "src": "jinx_spam_orang.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/", "dest": "jinx_spam_orang.py" }
+  ]
 }
