@@ -1,54 +1,44 @@
-# auto_send.py → AKUN LO KIRIM KE 100 GRUP ORANG (NO BAN!)
-from flask import Flask, request
+# jinx_spam_orang.py → AKUN LO KIRIM KE 100 GRUP ORANG 24 JAM!
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
-import os, random, time
+import time, random, os
 
-app = Flask(__name__)
-
-# ENV VERCEL (ganti di Settings → Environment Variables)
+# GANTI INI DI ENV VERCEL!
 API_ID   = int(os.getenv('API_ID'))
 API_HASH = os.getenv('API_HASH')
 SESSION  = os.getenv('SESSION')
-GRUPS    = [int(x) for x in os.getenv('GRUPS').split(',')]
+GRUPS    = os.getenv('GRUPS').split(',')  # @group1,@group2
 
-# 50 KATA RANDOM (ganti sesuka hati)
-KATA = [
-    "Baru dapet akun PREMIUM nih 🔥",
-    "Siapa cepet dia dapet! ⚡",
-    "Akun fresh 2FA off nih bro",
-    "Join dulu baru dapet link 😈",
-    "Cuma 5 menit lagi expired!",
-    "Dari grup sebelah, cek PM",
+# 50 PESAN RANDOM
+PESAN = [
+    "AKUN PREMIUM MASUK! 🔥",
+    "Baru dapet akun fresh!",
+    "Siapa cepet dia dapet!",
     "Akun +62 full verified",
-    "Baru login 10 detik lalu",
-    "Siapa mau? langsung ambil",
-    "Cek bio aku ada linknya"
+    "Cek DM aku ada linknya",
+    "Join dulu baru dapet",
+    "Cuma 5 menit lagi expired",
+    "Dari grup sebelah",
+    "Akun 2FA off nih bro",
+    "Langsung ambil!"
 ]
 
 client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
+client.connect()
 
-@app.route('/kirim')
-def kirim():
-    phone = request.args.get('phone', '+628123456789')
-    pesan = random.choice(KATA) + f"\n📱 {phone}\n⏰ {time.strftime('%H:%M')}"
-    
-    try:
-        client.connect()
-        if not client.is_user_authorized():
-            return "SESSION MATI!"
-        
-        for grup in GRUPS:
-            client.send_message(grup, pesan)
-            delay = random.randint(15, 45)  # 15–45 DETIK
-            time.sleep(delay)
-        
-        client.disconnect()
-        return f"TERKIRIM KE {len(GRUPS)} GRUP! Delay {delay}s"
-    
-    except Exception as e:
-        return f"GAGAL: {e}"
+print("JINX SPAM ORANG JALAN 24 JAM!")
 
-@app.route('/')
-def home():
-    return "AKUN LO SIAP KIRIM KE 100 GRUP ORANG! 😈"
+while True:
+    for grup in GRUPS:
+        try:
+            msg = random.choice(PESAN) + f"\n⏰ {time.strftime('%H:%M')}"
+            client.send_message(grup, msg)
+            print(f"[{time.strftime('%H:%M')}] TERKIRIM → {grup}")
+        except Exception as e:
+            print(f"ERROR {grup}: {e}")
+        
+        # DELAY 30–90 DETIK = 0% BAN!
+        delay = random.randint(30, 90)
+        time.sleep(delay)
+
+client.disconnect()
