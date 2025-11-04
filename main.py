@@ -9,7 +9,6 @@ SESSION  = os.getenv('SESSION')
 GRUPS    = [g.strip() for g in os.getenv('GRUPS').split(',') if g.strip()]
 
 KATA = [
-KATA = [
     "Abang VC yuk 😘",
     "Chat dulu say 😏",
     "Foto tanpa baju 😈",
