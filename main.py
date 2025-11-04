@@ -69,7 +69,7 @@ print("JINX SPAM ORANG 24 JAM JALAN DI RAILWAY — NO CRASH!")
 with client:
     client.start()
     while True:
-        pesan = random.choice(KATA) + "\n\n🔥JASEB BY @jktblackhat"
+        pesan = random.choice(KATA) + "\n\ntekotekkotoek"
         for g in GRUPS:
             try:
                 client.send_message(g, pesan)
