@@ -9,55 +9,57 @@ SESSION  = os.getenv('SESSION')
 GRUPS    = [g.strip() for g in os.getenv('GRUPS').split(',') if g.strip()]
 
 KATA = [
-    """🌋 OPEN CLASS TANAM SHELL 
-   🔥 BELAJAR EXPLOIT
-   🛡️ BELAJAR BYPASS
-   💀 Payload 2025 (work 100%)
-   📤 BELAJAR BIKIN DORK
-   ⚡ PEMBELAJAR SAMPAI BISA
-   🕶️ PM @jktblackhat""",
-
-    """🚀 MAU AUTO SEND GRUP BUAT PROMO?
-   ⏰ BOT RUN 24JAM (AMAN)
-   🎲 10.000 variasi kata
-   🛡️ 0% flood wait
-   📊 Tested 120 hari
-   🎨 Support emoji + sticker
-   🔄 Auto update pesan
-PM @jktblackhat""",
-
-    """🛡️ JOIN GRUP ANTISCAMEMER
-   ⚠️ BIAR TRANSAKSI AMAN
-   📛 LIST SCAMMER
-   🔍 Cek NOREK SCAMMEMR
-   🏆 Rekber ON fee 2%
-   🍒@Info_Scammer_Shell2""",
-
-    """💎 REKBER PREMIUM 24 JAM
-   💸 Fee termurah 1.5%
-   ⚡ PASTINYA AMAN DAN NYAMAN
-   🤑 ALL PAYMENT
-   🛡️ FAST RESPON
-   📈 ANTI DRAMA
-   🎖️ Admin online 24/7
-PM @jktblackhat""",
-
-    """⚡ PRIVATE TOOLS 
-   📡 TOOLS BRUTE FORCE ALL CMS
-   🔍 GRABBER DOMAIN 
-   🕷️ AUTO UPLOAD SHELL WORDPRESS
-   💾 DIAJARIN CARA JALANIN TOOLS SAMPAI PAHAM
-   🥰 PM @jktblackhat""",
-
-    """🎣 OPEN PEMBUATAN PHISINK ALL SOSMED
-   🤖 TRUE LOG IN TELEGRAM KODE OTP ASLI
-   🌐 FACEBOK,INSTAGRAM,DLL DAN LIAT HASIL BISA LEWAT BOT TELE
-   🔐 Bypass 2FA 
-   📧 SCRIPT AMAN ANTI DETEK
-   🌍 50 template ready
-   🏆 99% success rate
-PM @jktblackhat"""
-
+KATA = [
+    "Abang VC yuk 😘",
+    "Chat dulu say 😏",
+    "Foto tanpa baju 😈",
+    "Miss you beb 🔥",
+    "Pinjem hati dong 😍",
+    "Kangen suara abang 😜",
+    "DM ada rahasia 😘",
+    "Single apa taken? 😉",
+    "Malam bareng yuk 😏",
+    "Kiss dulu tidur 😘",
+    "Panggil baby yuk 😈",
+    "Cantik kan aku? 😍",
+    "Bales cepet sayang 😘",
+    "Suka yang genit? 😏",
+    "Mau peluk abang 😜",
+    "Foto hot mana? 🔥",
+    "Kangen banget nih 😘",
+    "VC malam ini 😈",
+    "Sayang online yuk 😏",
+    "Foto dada dong 😍",
+    "Abang suka nakal? 😉",
+    "Chat panas yuk 😘",
+    "Miss your voice 😜",
+    "DM foto hot 😈",
+    "Malam minggu bareng 😏",
+    "Kiss virtual dulu 😘",
+    "Baby call yuk 😍",
+    "Genit buat abang 😜",
+    "Foto seksi mana? 🔥",
+    "Kangen peluk abang 😘",
+    "VC tanpa baju 😈",
+    "Sayang chat yuk 😏",
+    "Hot banget abang 😍",
+    "DM rahasia panas 😉",
+    "Kiss good night 😘",
+    "Panggil sayang yuk 😜",
+    "Foto abs dong 😈",
+    "Malam genit yuk 😏",
+    "Miss your kiss 😍",
+    "Chat 18+ yuk 😘",
+    "Abang suka genit 😜",
+    "Foto hot sekarang 🔥",
+    "Kangen badan abang 😈",
+    "VC panas yuk 😏",
+    "Sayang peluk dulu 😍",
+    "Genit malam ini 😉",
+    "Kiss dulu baru tidur 😘",
+    "Baby foto yuk 😜",
+    "Hot chat malam 😈",
+    "Abang kangen ga? 😏"
 ]
 
 client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
