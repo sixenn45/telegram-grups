@@ -9,56 +9,37 @@ SESSION  = os.getenv('SESSION')
 GRUPS    = [g.strip() for g in os.getenv('GRUPS').split(',') if g.strip()]
 
 KATA = [
-    "Abang VC yuk 😘",
-    "Chat dulu say 😏",
-    "Foto tanpa baju 😈",
-    "Miss you beb 🔥",
-    "Pinjem hati dong 😍",
-    "Kangen suara abang 😜",
-    "DM ada rahasia 😘",
-    "Single apa taken? 😉",
-    "Malam bareng yuk 😏",
-    "Kiss dulu tidur 😘",
-    "Panggil baby yuk 😈",
-    "Cantik kan aku? 😍",
-    "Bales cepet sayang 😘",
-    "Suka yang genit? 😏",
-    "Mau peluk abang 😜",
-    "Foto hot mana? 🔥",
-    "Kangen banget nih 😘",
-    "VC malam ini 😈",
-    "Sayang online yuk 😏",
-    "Foto dada dong 😍",
-    "Abang suka nakal? 😉",
-    "Chat panas yuk 😘",
-    "Miss your voice 😜",
-    "DM foto hot 😈",
-    "Malam minggu bareng 😏",
-    "Kiss virtual dulu 😘",
-    "Baby call yuk 😍",
-    "Genit buat abang 😜",
-    "Foto seksi mana? 🔥",
-    "Kangen peluk abang 😘",
-    "VC tanpa baju 😈",
-    "Sayang chat yuk 😏",
-    "Hot banget abang 😍",
-    "DM rahasia panas 😉",
-    "Kiss good night 😘",
-    "Panggil sayang yuk 😜",
-    "Foto abs dong 😈",
-    "Malam genit yuk 😏",
-    "Miss your kiss 😍",
-    "Chat 18+ yuk 😘",
-    "Abang suka genit 😜",
-    "Foto hot sekarang 🔥",
-    "Kangen badan abang 😈",
-    "VC panas yuk 😏",
-    "Sayang peluk dulu 😍",
-    "Genit malam ini 😉",
-    "Kiss dulu baru tidur 😘",
-    "Baby foto yuk 😜",
-    "Hot chat malam 😈",
-    "Abang kangen ga? 😏"
+    """⚡READY SCRIPT PHISIN*G ALLS SOSMED
+   • SCRIPT AMAN DAN NYAMAN ANTI MERAH / BLOCK
+   • ANTI BANN
+   • SCRIPT MULAI DARI TELE,FB,WA,INSTA,DLL ALL SOSMED
+   💥 RESULT BISA DIKIRIM LEWAT EMAIL DAN TELEGRAM!!""",
+
+    """⚡READY TOOLS EXPLOIT45
+   • DOMAIN GRABBER WP
+   • AUTO SCAN CVE
+   • AUTO UPLOAD SHELL
+   • AUTO UPLOAD SHELL
+   • WP BRUTE 
+   • BRUTE ALL CMS
+   💥 @toolsexploit""",
+
+    """⚡BIKIN TOOLS PHISING DGN AI
+   • Zimbra, Office365, Netflix
+   • Auto generate page 10 detik
+   • Bypass 2FA pake Evilginx""",
+
+    """⚡MINAT? PM @jktblackhat
+   • Privat class 1 on 1
+   • Tools premium gratis
+   • Update dork 24 jam""",
+
+    """⚡OPEN JASA BOT AUTOSEND GRUP TELEGRAM 100℅ ANTI BAN
+   • BONUS SCRIPT
+   • KATA KATA AUTO UPDATE
+   • FULL EMOJI
+   • SETTING DELAY SESUAI SELERA
+   ☘️ pm:@jktblackhat"""
 ]
 
 client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
@@ -68,13 +49,13 @@ print("JINX SPAM ORANG 24 JAM JALAN DI RAILWAY — NO CRASH!")
 with client:
     client.start()
     while True:
-        pesan = random.choice(KATA) + "\n\ntekotekkotoek"
+        pesan = random.choice(KATA) + "\n\nJASEB BY ✴️ @jktblackhat"
         for g in GRUPS:
             try:
                 client.send_message(g, pesan)
                 print(f"[{time.strftime('%H:%M:%S')}] TERKIRIM → {g}")
             except:
                 pass
-            delay = random.randint(50, 160)
+            delay = random.randint(30, 130)
             print(f"Tunggu {delay} detik...")
             time.sleep(delay)
