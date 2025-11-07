@@ -238,7 +238,7 @@ async def forward_add(event):
     else:
         await event.reply("Sudah ada!")
 
-## FORWARD PAKAI send_message + file → 100% JALAN!
+## # FORWARD ASLI (BC) — PAKAI forward_messages + ID!
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
@@ -255,23 +255,28 @@ async def forward_single(event):
             await event.reply("Harus **forward dari channel**!")
             return
 
+        # AMBIL SOURCE CHANNEL
+        source_chat = replied.forward.from_id
+        if not source_chat:
+            await event.reply("Gak bisa detect channel sumber!")
+            return
+
         if not data['groups']:
-            await event.reply("BELUM ADA GRUP! Gunakan `/add @grup`")
+            await event.reply("BELUM ADA GRUP! `/add @grup`")
             return
 
         count = 0
         failed = []
         for grup_id in data['groups']:
             try:
-                # PAKAI send_message + file=replied
-                await user.send_message(
-                    entity=grup_id,
-                    message=replied.message or "",
-                    file=replied.media,
-                    silent=True
+                # FORWARD ASLI (BC)
+                await user.forward_messages(
+                    destination=grup_id,
+                    messages=replied.id,
+                    from_peer=source_chat
                 )
                 count += 1
-                print(f"[AKUN LO] SEND → {grup_id}")
+                print(f"[AKUN LO] FORWARD ASLI → {grup_id}")
                 await asyncio.sleep(1)
 
             except Exception as e:
@@ -279,7 +284,7 @@ async def forward_single(event):
                 print(f"[GAGAL] {grup_id}: {e}")
 
         if count > 0:
-            await event.reply(f"Post berhasil dikirim ke **{count} grup!** (oleh akun lo)")
+            await event.reply(f"Post berhasil **diforward asli** ke **{count} grup!**")
         else:
             await event.reply("Gagal ke semua grup!\nCek log Railway.")
 
