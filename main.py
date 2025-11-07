@@ -63,19 +63,26 @@ async def spam_loop():
             await asyncio.sleep(1)
         await asyncio.sleep(data['delay'])
 
-# FORWARD LOOP
+# FORWARD LOOP — FIX 100% JALAN!
 async def forward_loop():
     await user.start()
+    print("[FORWARD] Listener aktif untuk channel:", data['forward_channels'])
+
     @user.on(events.NewMessage(chats=data['forward_channels']))
     async def handler(event):
-        if not data['forward_running']: return
+        if not data['forward_running']:
+            return
+
+        print(f"[FORWARD] Pesan baru dari: {event.chat_id}")
+
         for grup in data['groups']:
             try:
                 await event.forward_to(grup)
-                print(f"FORWARD → {grup}")
+                print(f"[FORWARD] Terkirim ke: {grup}")
                 await asyncio.sleep(1)
-            except: pass
-    await user.run_until_disconnected()
+            except Exception as e:
+                print(f"[ERROR FORWARD] {grup}: {e}")
+                await asyncio.sleep(2)
 
 # === PUBLIC COMMANDS — ORANG BISA PAKAI! ===
 @bot.on(events.NewMessage(pattern='/start'))
@@ -244,22 +251,26 @@ async def forward_add(event):
 async def forward_on(event):
     global forward_task
     if not data['forward_running']:
-        data['forward_running'] = True; save(data)
+        data['forward_running'] = True
+        save(data)
         forward_task = asyncio.create_task(forward_loop())
-        await event.reply("FORWARD NYALA")
+        await event.reply("FORWARD NYALA! Semua post dari channel akan diforward ke grup.")
+        print("[BOT] FORWARD DINYALAKAN!")
     else:
-        await event.reply("SUDAH NYALA")
+        await event.reply("FORWARD SUDAH NYALA!")
 
 @bot.on(events.NewMessage(pattern='/forward_off'))
 async def forward_off(event):
     global forward_task
     if data['forward_running']:
-        data['forward_running'] = False; save(data)
-        if forward_task: forward_task.cancel()
-        await event.reply("FORWARD MATI")
+        data['forward_running'] = False
+        save(data)
+        if forward_task:
+            forward_task.cancel()
+        await event.reply("FORWARD DIMATIKAN!")
+        print("[BOT] FORWARD DIMATIKAN!")
     else:
-        await event.reply("BELUM NYALA")
-
+        await event.reply("FORWARD SUDAH MATI!")
 # STATUS
 @bot.on(events.NewMessage(pattern='/status'))
 async def status(event):
