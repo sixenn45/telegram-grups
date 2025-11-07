@@ -43,6 +43,7 @@ data = load()
 print(f"[DEBUG] File: {DATA_FILE}")
 print(f"[DEBUG] Isi data: {data}")
 bot = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+print("[BOT] JINX PUBLIC BOT SUDAH START! @JinxPublicBot SIAP PAKAI!")
 user = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 
 spam_task = None
@@ -127,23 +128,39 @@ async def list(event):
     await event.reply(txt)
 
 # TAMBAH PESAN
+# TAMBAH PESAN — FIX REPLY 100% JALAN!
 @bot.on(events.NewMessage(pattern='/addpesan'))
 async def addpesan(event):
-    print(f"[DEBUG] /addpesan dipanggil!")  # DEBUG
-    if not event.message.reply_to_message:
-        print("[DEBUG] No reply!")  # DEBUG
-        await event.reply("REPLY PESAN YANG MAU DITAMBAH!\nContoh: Balas pesan → /addpesan")
+    print(f"[DEBUG] /addpesan dipanggil dari user: {event.sender_id}")
+
+    # CEK APAKAH ADA REPLY VIA ID
+    if not event.reply_to_msg_id:
+        await event.reply("REPLY PESAN YANG MAU DITAMBAH!\nContoh: Balas pesan → ketik `/addpesan`")
         return
-    
-    pesan = event.message.reply_to_message.message
-    print(f"[DEBUG] Pesan reply: {pesan[:50]}...")  # DEBUG
-    if pesan not in data['pesan_list']:
+
+    try:
+        # AMBIL PESAN YANG DIREPLY PAKE get_reply_message()
+        replied = await event.get_reply_message()
+        if not replied or not replied.message:
+            await event.reply("GAGAL BACA PESAN REPLY!")
+            return
+
+        pesan = replied.message
+        print(f"[DEBUG] Pesan reply: {pesan[:60]}...")
+
+        if pesan in data['pesan_list']:
+            await event.reply("PESAN INI SUDAH ADA DI LIST!")
+            return
+
         data['pesan_list'].append(pesan)
         save(data)
-        print("[DEBUG] Pesan disimpan!")  # DEBUG
-        await event.reply(f"PESAN DITAMBAH:\n\n{pesan}")
-    else:
-        await event.reply("SUDAH ADA DI LIST!")
+        print(f"[SUCCESS] Pesan ditambah! Total: {len(data['pesan_list'])}")
+
+        await event.reply(f"PESAN BERHASIL DITAMBAH!\n\n{pesan}")
+
+    except Exception as e:
+        await event.reply(f"ERROR: {str(e)}")
+        print(f"[ERROR] addpesan: {e}")
 
 # LIHAT PESAN
 @bot.on(events.NewMessage(pattern='/listpesan'))
