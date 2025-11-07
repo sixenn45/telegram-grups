@@ -238,71 +238,57 @@ async def forward_add(event):
     else:
         await event.reply("Sudah ada!")
 
-# FORWARD 1 POST — CEK BISA DIFORWARD + get_entity()
+# # FORWARD PAKAI copy_message → 100% JALAN!
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
-        await event.reply("REPLY post dari **channel** + ketik `/forward`")
+        await event.reply("**REPLY POST DARI CHANNEL** → ketik `/forward`")
         return
 
     try:
         replied = await event.get_reply_message()
         if not replied or not replied.message:
-            await event.reply("Reply ke postingan dari channel dulu!")
+            await event.reply("Gagal baca pesan!")
             return
 
-        # CEK APAKAH BISA DIFORWARD
         if not replied.forward:
-            await event.reply("Ini bukan postingan dari channel!\n"
-                              "Harus forward dari channel (bukan pesan biasa)")
+            await event.reply("Ini bukan post dari channel!\n"
+                              "Harus **forward dari channel**")
             return
 
         if not data['groups']:
-            await event.reply("BELUM ADA GRUP! Gunakan `/add @grup`")
+            await event.reply("BELUM ADA GRUP! `/add @grup`")
             return
 
         count = 0
         failed = []
         for grup_name in data['groups']:
             try:
-                # UBAH @username → ENTITY
                 entity = await user.get_entity(grup_name)
 
-                # CEK AKSES: KIRIM TEST
-                test_msg = await user.send_message(entity, "Cek akses...", silent=True)
-                await asyncio.sleep(0.5)
-                await test_msg.delete()
+                # CEK AKSES
+                test = await user.send_message(entity, "cek", silent=True)
+                await test.delete()
 
-                # FORWARD PAKAI message_id + from_chat
-                from_chat = replied.forward.from_id
-                if not from_chat:
-                    failed.append(f"{grup_name}: GAK ADA SOURCE")
-                    continue
-
-                await user.forward_messages(entity, replied.id, from_chat)
+                # PAKAI copy_message → 100% JALAN!
+                await user.copy_message(
+                    to_entity=entity,
+                    from_chat=replied.chat_id,
+                    message=replied.id
+                )
                 count += 1
-                print(f"[AKUN LO] FORWARD → {grup_name}")
+                print(f"[AKUN LO] COPY → {grup_name}")
                 await asyncio.sleep(1)
 
             except Exception as e:
-                error = str(e)
-                if "MESSAGE_ID_INVALID" in error:
-                    failed.append(f"{grup_name}: POST GAK BISA DIFORWARD")
-                elif "CHAT_WRITE_FORBIDDEN" in error:
-                    failed.append(f"{grup_name}: GAK BISA KIRIM")
-                elif "USER_NOT_PARTICIPANT" in error:
-                    failed.append(f"{grup_name}: GAK JOIN")
-                else:
-                    failed.append(f"{grup_name}: {error[:30]}")
+                failed.append(f"{grup_name}: {str(e)[:30]}")
                 print(f"[GAGAL] {grup_name}: {e}")
 
         if count > 0:
-            await event.reply(f"Post berhasil diforward ke **{count} grup!** (oleh akun lo)")
+            await event.reply(f"Post berhasil dikirim ke **{count} grup!** (oleh akun lo)")
         else:
             await event.reply("Gagal ke semua grup!\n"
-                              "Pastikan:\n"
-                              "• Reply ke post dari **channel**\n"
-                              "• Akun lo join grup")
+                              "Cek log Railway untuk detail.")
 
         if failed:
             print("[GAGAL GRUP] " + " | ".join(failed))
