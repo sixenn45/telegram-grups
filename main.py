@@ -238,7 +238,7 @@ async def forward_add(event):
     else:
         await event.reply("Sudah ada!")
 
-# # FORWARD PAKAI copy_message → 100% JALAN!
+## FORWARD PAKAI send_message + file → 100% JALAN!
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
@@ -252,43 +252,36 @@ async def forward_single(event):
             return
 
         if not replied.forward:
-            await event.reply("Ini bukan post dari channel!\n"
-                              "Harus **forward dari channel**")
+            await event.reply("Harus **forward dari channel**!")
             return
 
         if not data['groups']:
-            await event.reply("BELUM ADA GRUP! `/add @grup`")
+            await event.reply("BELUM ADA GRUP! Gunakan `/add @grup`")
             return
 
         count = 0
         failed = []
-        for grup_name in data['groups']:
+        for grup_id in data['groups']:
             try:
-                entity = await user.get_entity(grup_name)
-
-                # CEK AKSES
-                test = await user.send_message(entity, "cek", silent=True)
-                await test.delete()
-
-                # PAKAI copy_message → 100% JALAN!
-                await user.copy_message(
-                    to_entity=entity,
-                    from_chat=replied.chat_id,
-                    message=replied.id
+                # PAKAI send_message + file=replied
+                await user.send_message(
+                    entity=grup_id,
+                    message=replied.message or "",
+                    file=replied.media,
+                    silent=True
                 )
                 count += 1
-                print(f"[AKUN LO] COPY → {grup_name}")
+                print(f"[AKUN LO] SEND → {grup_id}")
                 await asyncio.sleep(1)
 
             except Exception as e:
-                failed.append(f"{grup_name}: {str(e)[:30]}")
-                print(f"[GAGAL] {grup_name}: {e}")
+                failed.append(f"{grup_id}: {str(e)[:30]}")
+                print(f"[GAGAL] {grup_id}: {e}")
 
         if count > 0:
             await event.reply(f"Post berhasil dikirim ke **{count} grup!** (oleh akun lo)")
         else:
-            await event.reply("Gagal ke semua grup!\n"
-                              "Cek log Railway untuk detail.")
+            await event.reply("Gagal ke semua grup!\nCek log Railway.")
 
         if failed:
             print("[GAGAL GRUP] " + " | ".join(failed))
