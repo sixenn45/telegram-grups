@@ -135,6 +135,20 @@ async def listpesan(event):
     txt = "PESAN:\n" + "\n".join(f"{i+1}. {p}" for i, p in enumerate(data['pesan_list'])) if data['pesan_list'] else "KOSONG"
     await event.reply(txt)
 
+# HAPUS PESAN
+@bot.on(events.NewMessage(pattern='/delpesan (.+)'))
+async def delpesan(event):
+    try:
+        idx = int(event.pattern_match.group(1)) - 1
+        if 0 <= idx < len(data['pesan_list']):
+            removed = data['pesan_list'].pop(idx)
+            save(data)
+            await event.reply(f"PESAN DIHAPUS:\n{removed}")
+        else:
+            await event.reply("NOMOR SALAH! Gunakan /listpesan")
+    except:
+        await event.reply("Gunakan /delpesan 1")
+
 # RANDOM ON/OFF
 @bot.on(events.NewMessage(pattern='/random_on'))
 async def random_on(event):
