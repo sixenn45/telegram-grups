@@ -238,7 +238,7 @@ async def forward_add(event):
     else:
         await event.reply("Sudah ada!")
 
-# FORWARD 1 POST — AKUN LO KIRIM!
+# FORWARD 1 POST — AKUN LO KIRIM + CEK AKSES!
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
@@ -263,17 +263,36 @@ async def forward_single(event):
         failed = []
         for grup in data['groups']:
             try:
+                # CEK AKSES: KIRIM TEST
+                test_msg = await user.send_message(grup, "Cek akses...", silent=True)
+                await asyncio.sleep(0.5)
+                await test_msg.delete()
+
+                # FORWARD ASLI
                 await user.forward_messages(grup, replied)
                 count += 1
                 print(f"[AKUN LO] FORWARD → {grup}")
                 await asyncio.sleep(1)
             except Exception as e:
-                failed.append(f"{grup}: {str(e)[:40]}")
+                error = str(e)
+                if "CHAT_WRITE_FORBIDDEN" in error:
+                    failed.append(f"{grup}: GAK BISA KIRIM")
+                elif "USER_NOT_PARTICIPANT" in error:
+                    failed.append(f"{grup}: GAK JOIN")
+                else:
+                    failed.append(f"{grup}: {error[:30]}")
+                print(f"[GAGAL] {grup}: {e}")
 
         if count > 0:
             await event.reply(f"Post berhasil diforward ke **{count} grup!** (oleh akun lo)")
         else:
-            await event.reply("Gagal ke semua grup!\nPastikan akun lo bisa kirim di grup.")
+            await event.reply("Gagal ke semua grup!\n"
+                              "Pastikan akun lo:\n"
+                              "• Sudah join grup\n"
+                              "• Bisa kirim pesan di grup")
+
+        if failed:
+            print("[GAGAL GRUP] " + " | ".join(failed))
 
     except Exception as e:
         await event.reply(f"Error: {str(e)}")
