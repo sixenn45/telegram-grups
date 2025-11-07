@@ -160,11 +160,16 @@ async def list(event):
     await event.reply(txt)
 
 # TAMBAH PESAN
-@bot.on(events.NewMessage(pattern=r'/addpesan\s+(.+)', re.S))
+# TAMBAH PESAN — MULTI-LINE JALAN! (FIX ERROR)
+import re
+
+addpesan_pattern = re.compile(r'/addpesan\s+(.+)', re.DOTALL)
+
+@bot.on(events.NewMessage(pattern=addpesan_pattern))
 async def addpesan(event):
     pesan = event.pattern_match.group(1).strip()
     if pesan in data['pesan_list']:
-        await event.reply("Sudah ada!")
+        await event.reply("Sudah ada di list!")
         return
     data['pesan_list'].append(pesan)
     save(data)
