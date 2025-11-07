@@ -238,8 +238,7 @@ async def forward_add(event):
     else:
         await event.reply("Sudah ada!")
 
-# FORWARD 1 POST — AKUN LO KIRIM + CEK AKSES!
-# FORWARD 1 POST — AKUN LO KIRIM + CEK AKSES!
+# FORWARD 1 POST — PAKAI get_entity() BIAR ID GRUP BENAR!
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
@@ -262,35 +261,38 @@ async def forward_single(event):
 
         count = 0
         failed = []
-        for grup in data['groups']:
+        for grup_name in data['groups']:
             try:
+                # UBAH @username → ENTITY (ID)
+                entity = await user.get_entity(grup_name)
+                
                 # CEK AKSES: KIRIM TEST
-                test_msg = await user.send_message(grup, "Cek akses...", silent=True)
+                test_msg = await user.send_message(entity, "Cek akses...", silent=True)
                 await asyncio.sleep(0.5)
                 await test_msg.delete()
 
-                # FORWARD ASLI
-                await user.forward_messages(grup, replied)
+                # FORWARD PAKAI ENTITY
+                await user.forward_messages(entity, replied)
                 count += 1
-                print(f"[AKUN LO] FORWARD → {grup}")
+                print(f"[AKUN LO] FORWARD → {grup_name}")
                 await asyncio.sleep(1)
             except Exception as e:
                 error = str(e)
                 if "CHAT_WRITE_FORBIDDEN" in error:
-                    failed.append(f"{grup}: GAK BISA KIRIM")
+                    failed.append(f"{grup_name}: GAK BISA KIRIM")
                 elif "USER_NOT_PARTICIPANT" in error:
-                    failed.append(f"{grup}: GAK JOIN")
+                    failed.append(f"{grup_name}: GAK JOIN")
+                elif "PEER_ID_INVALID" in error:
+                    failed.append(f"{grup_name}: ID SALAH")
                 else:
-                    failed.append(f"{grup}: {error[:30]}")
-                print(f"[GAGAL] {grup}: {e}")
+                    failed.append(f"{grup_name}: {error[:30]}")
+                print(f"[GAGAL] {grup_name}: {e}")
 
         if count > 0:
             await event.reply(f"Post berhasil diforward ke **{count} grup!** (oleh akun lo)")
         else:
             await event.reply("Gagal ke semua grup!\n"
-                              "Pastikan akun lo:\n"
-                              "• Sudah join grup\n"
-                              "• Bisa kirim pesan di grup")
+                              "Cek log Railway untuk detail error.")
 
         if failed:
             print("[GAGAL GRUP] " + " | ".join(failed))
