@@ -239,6 +239,7 @@ async def forward_add(event):
         await event.reply("Sudah ada!")
 
 # FORWARD 1 POST — AKUN LO KIRIM + CEK AKSES!
+# FORWARD 1 POST — AKUN LO KIRIM + CEK AKSES!
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
