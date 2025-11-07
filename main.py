@@ -30,10 +30,18 @@ def load():
     }
 
 def save(data):
-    json.dump(data, open(DATA_FILE, 'w'), indent=2)
+    try:
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"[SAVED] Data disimpan ke {DATA_FILE}")
+    except Exception as e:
+        print(f"[ERROR SAVE] Gagal simpan: {e}")
 
 data = load()
 
+# TAMBAH INI DI SINI (SETELAH data = load())
+print(f"[DEBUG] File: {DATA_FILE}")
+print(f"[DEBUG] Isi data: {data}")
 bot = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 user = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 
