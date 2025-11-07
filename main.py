@@ -127,26 +127,34 @@ async def list(event):
     await event.reply(txt)
 
 # TAMBAH PESAN
-@bot.on(events.NewMessage(pattern='/addpesan (.+)'))
-# TAMBAH PESAN PANJANG + ENTER (MULTI-LINE)
 @bot.on(events.NewMessage(pattern='/addpesan'))
 async def addpesan(event):
+    print(f"[DEBUG] /addpesan dipanggil!")  # DEBUG
     if not event.message.reply_to_message:
+        print("[DEBUG] No reply!")  # DEBUG
         await event.reply("REPLY PESAN YANG MAU DITAMBAH!\nContoh: Balas pesan → /addpesan")
         return
     
     pesan = event.message.reply_to_message.message
+    print(f"[DEBUG] Pesan reply: {pesan[:50]}...")  # DEBUG
     if pesan not in data['pesan_list']:
         data['pesan_list'].append(pesan)
         save(data)
-        await event.reply("PESAN PANJANG DITAMBAH!\n\n" + pesan)
+        print("[DEBUG] Pesan disimpan!")  # DEBUG
+        await event.reply(f"PESAN DITAMBAH:\n\n{pesan}")
     else:
-        await event.reply("SUDAH ADA!")
+        await event.reply("SUDAH ADA DI LIST!")
 
 # LIHAT PESAN
 @bot.on(events.NewMessage(pattern='/listpesan'))
 async def listpesan(event):
-    txt = "PESAN:\n" + "\n".join(f"{i+1}. {p}" for i, p in enumerate(data['pesan_list'])) if data['pesan_list'] else "KOSONG"
+    print(f"[DEBUG] /listpesan dipanggil! Jumlah pesan: {len(data['pesan_list'])}")  # TAMBAH INI
+    if data['pesan_list']:
+        txt = "PESAN:\n"
+        for i, p in enumerate(data['pesan_list'], 1):
+            txt += f"{i}. {p}\n"
+    else:
+        txt = "BELUM ADA PESAN!"
     await event.reply(txt)
 
 # HAPUS PESAN
