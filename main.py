@@ -238,14 +238,49 @@ async def stopspam(event):
     else:
         await event.reply("BELUM JALAN")
 
-# FORWARD
-@bot.on(events.NewMessage(pattern='/forward (.+)'))
+## TAMBAH CHANNEL (SEPERTI LAMA)
+@bot.on(events.NewMessage(pattern=r'/forward_add (@\w+|\d+)'))
 async def forward_add(event):
     c = event.pattern_match.group(1).strip()
     if c not in data['forward_channels']:
-        data['forward_channels'].append(c); save(data); await event.reply(f"{c} DITAMBAH")
+        data['forward_channels'].append(c)
+        save(data)
+        await event.reply(f"{c} ditambah sebagai sumber forward!")
     else:
-        await event.reply("SUDAH ADA")
+        await event.reply("Sudah ada di daftar!")
+
+# FORWARD 1 POSTINGAN SPESIFIK (REPLY)
+@bot.on(events.NewMessage(pattern='/forward'))
+async def forward_single(event):
+    if not event.is_reply:
+        await event.reply("Gunakan:\n"
+                          "• `/forward_add @channel` → Tambah sumber\n"
+                          "• REPLY post + `/forward` → Kirim 1 post ke semua grup")
+        return
+
+    try:
+        replied = await event.get_reply_message()
+        if not replied or not replied.message:
+            await event.reply("Reply ke postingan dari channel dulu!")
+            return
+
+        if not getattr(replied, 'forward', None):
+            await event.reply("Ini bukan postingan dari channel!")
+            return
+
+        count = 0
+        for grup in data['groups']:
+            try:
+                await replied.forward_to(grup)
+                count += 1
+                await asyncio.sleep(1)
+            except Exception as e:
+                print(f"[ERROR] Gagal kirim ke {grup}: {e}")
+
+        await event.reply(f"Post berhasil diforward ke {count} grup!")
+
+    except Exception as e:
+        await event.reply(f"Error: {str(e)}")
 
 @bot.on(events.NewMessage(pattern='/forward_on'))
 async def forward_on(event):
