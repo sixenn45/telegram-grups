@@ -160,7 +160,7 @@ async def list(event):
     await event.reply(txt)
 
 # TAMBAH PESAN
-@bot.on(events.NewMessage(pattern=r'/addpesan\s+(.+)', flags=re.DOTALL))
+@bot.on(events.NewMessage(pattern=r'/addpesan\s+(.+)', Re.S))
 async def addpesan(event):
     pesan = event.pattern_match.group(1).strip()
     if pesan in data['pesan_list']:
