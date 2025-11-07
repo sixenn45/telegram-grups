@@ -120,14 +120,20 @@ async def list(event):
 
 # TAMBAH PESAN
 @bot.on(events.NewMessage(pattern='/addpesan (.+)'))
+# TAMBAH PESAN PANJANG + ENTER (MULTI-LINE)
+@bot.on(events.NewMessage(pattern='/addpesan'))
 async def addpesan(event):
-    p = event.pattern_match.group(1).strip()
-    if p not in data['pesan_list']:
-        data['pesan_list'].append(p)
+    if not event.message.reply_to_message:
+        await event.reply("REPLY PESAN YANG MAU DITAMBAH!\nContoh: Balas pesan → /addpesan")
+        return
+    
+    pesan = event.message.reply_to_message.message
+    if pesan not in data['pesan_list']:
+        data['pesan_list'].append(pesan)
         save(data)
-        await event.reply(f"PESAN DITAMBAH!")
+        await event.reply("PESAN PANJANG DITAMBAH!\n\n" + pesan)
     else:
-        await event.reply("SUDAH ADA")
+        await event.reply("SUDAH ADA!")
 
 # LIHAT PESAN
 @bot.on(events.NewMessage(pattern='/listpesan'))
