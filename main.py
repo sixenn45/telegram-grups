@@ -1,7 +1,7 @@
-# jinx_bot_forward.py — PUBLIC MODE: ORANG BISA PAKAI BOT LO!
+# jinx_bot_forward.py — AKUN LO KIRIM SEMUA! BOT CUMA KOMANDO!
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
-import os, json, asyncio, random
+import os, json, asyncio, random, re
 
 # ENV
 API_ID = int(os.getenv('API_ID'))
@@ -23,10 +23,11 @@ def load():
             "PM @jktblackhat UNTUK TOOLS"
         ],
         "use_random": True,
-        "delay": 90,
+        "delay": 100,
         "spam_running": False,
         "forward_channels": [],
-        "forward_running": False
+        "forward_running": False,
+        "forwarded_posts": []
     }
 
 def save(data):
@@ -39,31 +40,41 @@ def save(data):
 
 data = load()
 
-# TAMBAH INI DI SINI (SETELAH data = load())
+# DEBUG AWAL
 print(f"[DEBUG] File: {DATA_FILE}")
 print(f"[DEBUG] Isi data: {data}")
+
+# BOT + USER
 bot = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
-print("[BOT] JINX PUBLIC BOT SUDAH START! @JinxPublicBot SIAP PAKAI!")
 user = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 
 spam_task = None
 forward_task = None
 
-# SPAM LOOP — CLEAN & RANDOM
+# SPAM LOOP — AKUN LO KIRIM!
 async def spam_loop():
     await user.start()
+    last_pesan = None
     while data['spam_running']:
         pesan = random.choice(data['pesan_list']) if data['use_random'] and data['pesan_list'] else "SPAM JINX!"
+        if pesan == last_pesan:
+            continue
+        last_pesan = pesan
+
         for grup in data['groups']:
             try:
                 await user.send_message(grup, pesan, silent=True)
-                print(f"SPAM → {grup}")
+                print(f"[AKUN LO] SPAM → {grup}")
+                await asyncio.sleep(1)
             except Exception as e:
-                print(f"Error: {e}")
-            await asyncio.sleep(1)
-        await asyncio.sleep(data['delay'])
+                print(f"[ERROR SPAM] {grup}: {e}")
+                await asyncio.sleep(2)
 
-# FORWARD LOOP — FIX 100% JALAN!
+        random_delay = data['delay'] + random.randint(-20, 20)
+        await asyncio.sleep(max(80, random_delay))
+        print(f"[SPAM] Delay: {random_delay}s")
+
+# FORWARD LOOP — AKUN LO KIRIM!
 async def forward_loop():
     await user.start()
     print("[FORWARD] Listener aktif untuk channel:", data['forward_channels'])
@@ -73,60 +84,74 @@ async def forward_loop():
         if not data['forward_running']:
             return
 
-        print(f"[FORWARD] Pesan baru dari: {event.chat_id}")
-
+        print(f"[AKUN LO] Post baru dari: {event.chat_id}")
         for grup in data['groups']:
             try:
                 await event.forward_to(grup)
-                print(f"[FORWARD] Terkirim ke: {grup}")
+                print(f"[AKUN LO] FORWARD → {grup}")
                 await asyncio.sleep(1)
             except Exception as e:
                 print(f"[ERROR FORWARD] {grup}: {e}")
                 await asyncio.sleep(2)
 
-# === PUBLIC COMMANDS — ORANG BISA PAKAI! ===
+# === MENU LENGKAP ===
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.reply(
-        "SELAMAT DATANG DI JINX PUBLIC BOT\n\n"
-        "KAMU BISA PAKAI BOT INI!\n\n"
-        "FITUR:\n"
-        "/add @grup → Tambah grup\n"
-        "/del @grup → Hapus\n"
-        "/list → Lihat grup\n"
-        "/addpesan teks → Tambah pesan\n"
+    menu = (
+        "SELAMAT DATANG DI JINX BOT!\n\n"
+        "FITUR UTAMA:\n"
+        "────────────────────\n"
+        "SPAM OTOMATIS\n"
+        "/startspam → Nyalain spam\n"
+        "/stopspam → Matikan spam\n"
+        "/addpesan [pesan] → Tambah pesan\n"
         "/listpesan → Lihat pesan\n"
-        "/random_on /random_off → Ganti mode\n"
-        "/delay 60 → Ganti delay\n"
-        "/startspam → Mulai spam\n"
-        "/stopspam → Hentikan\n"
-        "/forward @channel → Tambah forward\n"
-        "/forward_on /forward_off → Nyalain\n"
-        "/status → Cek status\n\n"
-        "SPAM JALAN DARI AKUN @jktblackhat!"
+        "/delay 100 → Ganti delay\n"
+        "/random_on /random_off → Mode acak\n\n"
+        "FORWARD POSTINGAN\n"
+        "/forward_add @channel → Tambah channel\n"
+        "/forward → REPLY post + kirim ke grup\n"
+        "/forward_on → Auto forward nyala\n"
+        "/forward_off → Auto forward mati\n\n"
+        "GRUP TARGET\n"
+        "/add @grup → Tambah grup\n"
+        "/del @grup → Hapus grup\n"
+        "/list → Lihat grup aktif\n\n"
+        "CEK STATUS\n"
+        "/status → Lihat semua status\n\n"
+        "CONTOH:\n"
+        "→ /addpesan JASA SPAM 50K!\n"
+        "→ /add @WebsheLLMarket_Grup\n"
+        "→ /startspam"
     )
+    await event.reply(menu)
+
+# MENU — SAMA SEPERTI /start
+@bot.on(events.NewMessage(pattern='/menu'))
+async def menu(event):
+    await start(event)  # Panggil fungsi /start
 
 # TAMBAH GRUP
-@bot.on(events.NewMessage(pattern='/add (.+)'))
+@bot.on(events.NewMessage(pattern=r'/add (@\w+|\d+)'))
 async def add(event):
     grup = event.pattern_match.group(1).strip()
     if grup not in data['groups']:
         data['groups'].append(grup)
         save(data)
-        await event.reply(f"{grup} DITAMBAH!")
+        await event.reply(f"{grup} berhasil ditambah!")
     else:
-        await event.reply("SUDAH ADA")
+        await event.reply("Sudah ada!")
 
 # HAPUS GRUP
-@bot.on(events.NewMessage(pattern='/del (.+)'))
+@bot.on(events.NewMessage(pattern=r'/del (@\w+|\d+)'))
 async def delete(event):
     grup = event.pattern_match.group(1).strip()
     if grup in data['groups']:
         data['groups'].remove(grup)
         save(data)
-        await event.reply(f"{grup} DIHAPUS!")
+        await event.reply(f"{grup} berhasil dihapus!")
     else:
-        await event.reply("GAK ADA")
+        await event.reply("Gak ada!")
 
 # LIHAT GRUP
 @bot.on(events.NewMessage(pattern='/list'))
@@ -135,44 +160,19 @@ async def list(event):
     await event.reply(txt)
 
 # TAMBAH PESAN
-# TAMBAH PESAN — FIX REPLY 100% JALAN!
-@bot.on(events.NewMessage(pattern='/addpesan'))
+@bot.on(events.NewMessage(pattern=r'/addpesan\s+(.+)', flags=re.DOTALL))
 async def addpesan(event):
-    print(f"[DEBUG] /addpesan dipanggil dari user: {event.sender_id}")
-
-    # CEK APAKAH ADA REPLY VIA ID
-    if not event.reply_to_msg_id:
-        await event.reply("REPLY PESAN YANG MAU DITAMBAH!\nContoh: Balas pesan → ketik `/addpesan`")
+    pesan = event.pattern_match.group(1).strip()
+    if pesan in data['pesan_list']:
+        await event.reply("Sudah ada!")
         return
-
-    try:
-        # AMBIL PESAN YANG DIREPLY PAKE get_reply_message()
-        replied = await event.get_reply_message()
-        if not replied or not replied.message:
-            await event.reply("GAGAL BACA PESAN REPLY!")
-            return
-
-        pesan = replied.message
-        print(f"[DEBUG] Pesan reply: {pesan[:60]}...")
-
-        if pesan in data['pesan_list']:
-            await event.reply("PESAN INI SUDAH ADA DI LIST!")
-            return
-
-        data['pesan_list'].append(pesan)
-        save(data)
-        print(f"[SUCCESS] Pesan ditambah! Total: {len(data['pesan_list'])}")
-
-        await event.reply(f"PESAN BERHASIL DITAMBAH!\n\n{pesan}")
-
-    except Exception as e:
-        await event.reply(f"ERROR: {str(e)}")
-        print(f"[ERROR] addpesan: {e}")
+    data['pesan_list'].append(pesan)
+    save(data)
+    await event.reply(f"Pesan berhasil ditambah!\n\n{pesan}")
 
 # LIHAT PESAN
 @bot.on(events.NewMessage(pattern='/listpesan'))
 async def listpesan(event):
-    print(f"[DEBUG] /listpesan dipanggil! Jumlah pesan: {len(data['pesan_list'])}")  # TAMBAH INI
     if data['pesan_list']:
         txt = "PESAN:\n"
         for i, p in enumerate(data['pesan_list'], 1):
@@ -180,20 +180,6 @@ async def listpesan(event):
     else:
         txt = "BELUM ADA PESAN!"
     await event.reply(txt)
-
-# HAPUS PESAN
-@bot.on(events.NewMessage(pattern='/delpesan (.+)'))
-async def delpesan(event):
-    try:
-        idx = int(event.pattern_match.group(1)) - 1
-        if 0 <= idx < len(data['pesan_list']):
-            removed = data['pesan_list'].pop(idx)
-            save(data)
-            await event.reply(f"PESAN DIHAPUS:\n{removed}")
-        else:
-            await event.reply("NOMOR SALAH! Gunakan /listpesan")
-    except:
-        await event.reply("Gunakan /delpesan 1")
 
 # RANDOM ON/OFF
 @bot.on(events.NewMessage(pattern='/random_on'))
@@ -205,7 +191,7 @@ async def random_off(event):
     data['use_random'] = False; save(data); await event.reply("RANDOM MATI")
 
 # DELAY
-@bot.on(events.NewMessage(pattern='/delay (.+)'))
+@bot.on(events.NewMessage(pattern=r'/delay (\d+)'))
 async def delay(event):
     try:
         d = int(event.pattern_match.group(1))
@@ -238,24 +224,20 @@ async def stopspam(event):
     else:
         await event.reply("BELUM JALAN")
 
-## TAMBAH CHANNEL (SEPERTI LAMA)
+# TAMBAH CHANNEL
 @bot.on(events.NewMessage(pattern=r'/forward_add (@\w+|\d+)'))
 async def forward_add(event):
     c = event.pattern_match.group(1).strip()
     if c not in data['forward_channels']:
-        data['forward_channels'].append(c)
-        save(data)
-        await event.reply(f"{c} ditambah sebagai sumber forward!")
+        data['forward_channels'].append(c); save(data); await event.reply(f"{c} ditambah!")
     else:
-        await event.reply("Sudah ada di daftar!")
+        await event.reply("Sudah ada!")
 
-# FORWARD 1 POSTINGAN SPESIFIK (REPLY)
+# FORWARD 1 POST — AKUN LO KIRIM!
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
-        await event.reply("Gunakan:\n"
-                          "• `/forward_add @channel` → Tambah sumber\n"
-                          "• REPLY post + `/forward` → Kirim 1 post ke semua grup")
+        await event.reply("REPLY post dari channel + ketik `/forward`")
         return
 
     try:
@@ -268,44 +250,50 @@ async def forward_single(event):
             await event.reply("Ini bukan postingan dari channel!")
             return
 
+        if not data['groups']:
+            await event.reply("BELUM ADA GRUP! Gunakan `/add @grup`")
+            return
+
         count = 0
+        failed = []
         for grup in data['groups']:
             try:
-                await replied.forward_to(grup)
+                await user.forward_messages(grup, replied)
                 count += 1
+                print(f"[AKUN LO] FORWARD → {grup}")
                 await asyncio.sleep(1)
             except Exception as e:
-                print(f"[ERROR] Gagal kirim ke {grup}: {e}")
+                failed.append(f"{grup}: {str(e)[:40]}")
 
-        await event.reply(f"Post berhasil diforward ke {count} grup!")
+        if count > 0:
+            await event.reply(f"Post berhasil diforward ke **{count} grup!** (oleh akun lo)")
+        else:
+            await event.reply("Gagal ke semua grup!\nPastikan akun lo bisa kirim di grup.")
 
     except Exception as e:
         await event.reply(f"Error: {str(e)}")
 
+# FORWARD ON/OFF
 @bot.on(events.NewMessage(pattern='/forward_on'))
 async def forward_on(event):
     global forward_task
     if not data['forward_running']:
-        data['forward_running'] = True
-        save(data)
+        data['forward_running'] = True; save(data)
         forward_task = asyncio.create_task(forward_loop())
-        await event.reply("FORWARD NYALA! Semua post dari channel akan diforward ke grup.")
-        print("[BOT] FORWARD DINYALAKAN!")
+        await event.reply("FORWARD NYALA!")
     else:
-        await event.reply("FORWARD SUDAH NYALA!")
+        await event.reply("SUDAH NYALA!")
 
 @bot.on(events.NewMessage(pattern='/forward_off'))
 async def forward_off(event):
     global forward_task
     if data['forward_running']:
-        data['forward_running'] = False
-        save(data)
-        if forward_task:
-            forward_task.cancel()
-        await event.reply("FORWARD DIMATIKAN!")
-        print("[BOT] FORWARD DIMATIKAN!")
+        data['forward_running'] = False; save(data)
+        if forward_task: forward_task.cancel()
+        await event.reply("FORWARD MATI!")
     else:
-        await event.reply("FORWARD SUDAH MATI!")
+        await event.reply("SUDAH MATI!")
+
 # STATUS
 @bot.on(events.NewMessage(pattern='/status'))
 async def status(event):
@@ -317,5 +305,5 @@ async def status(event):
     txt += f"DELAY: {data['delay']}s"
     await event.reply(txt)
 
-print("JINX PUBLIC BOT JALAN — ORANG BISA PAKAI!")
+print("JINX BOT JALAN — AKUN LO KIRIM SEMUA!")
 bot.run_until_disconnected()
