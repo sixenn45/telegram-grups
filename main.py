@@ -238,7 +238,7 @@ async def forward_add(event):
     else:
         await event.reply("Sudah ada!")
 
-## BC ASLI (FORWARD BENERAN) — ADA "Forwarded from"
+## # BC ASLI — PAKAI forward_messages DARI PESAN DI BOT!
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
@@ -252,13 +252,14 @@ async def forward_single(event):
                               "Bukan pesan biasa!")
             return
 
-        # AMBIL CHANNEL ASLI & ID PESAN ASLI
+        # AMBIL CHANNEL ASLI
         source_chat = replied.forward.from_id
-        original_msg_id = replied.forward.original_message  # ID PESAN ASLI DI CHANNEL
-
-        if not source_chat or not original_msg_id:
-            await event.reply("Gagal detect pesan asli dari channel!")
+        if not source_chat:
+            await event.reply("Gak bisa detect channel sumber!")
             return
+
+        # PAKAI PESAN DI BOT (replied.id) → BISA DIFORWARD!
+        message_id_in_bot = replied.id
 
         if not data['groups']:
             await event.reply("BELUM ADA GRUP! `/add @grup`")
@@ -270,10 +271,10 @@ async def forward_single(event):
             try:
                 grup_entity = await user.get_entity(grup_name)
 
-                # BC ASLI → PAKAI forward_messages
+                # BC ASLI → FORWARD DARI PESAN DI BOT
                 await user.forward_messages(
                     entity=grup_entity,
-                    messages=original_msg_id,
+                    messages=message_id_in_bot,
                     from_peer=source_chat
                 )
                 count += 1
@@ -288,9 +289,6 @@ async def forward_single(event):
             await event.reply(f"**BC ASLI BERHASIL!**\nPost diforward ke **{count} grup!**")
         else:
             await event.reply("Gagal ke semua grup!\nCek log Railway.")
-
-        if failed:
-            print("[GAGAL GRUP] " + " | ".join(failed))
 
     except Exception as e:
         await event.reply(f"Error: {str(e)}")
