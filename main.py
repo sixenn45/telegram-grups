@@ -238,7 +238,7 @@ async def forward_add(event):
     else:
         await event.reply("Sudah ada!")
 
-## # FORWARD ASLI (BC) — PAKAI forward_messages + ID!
+## FORWARD ASLI (BC) — PAKAI forward_messages(entity, messages, from_peer)
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
@@ -255,7 +255,6 @@ async def forward_single(event):
             await event.reply("Harus **forward dari channel**!")
             return
 
-        # AMBIL SOURCE CHANNEL
         source_chat = replied.forward.from_id
         if not source_chat:
             await event.reply("Gak bisa detect channel sumber!")
@@ -269,18 +268,18 @@ async def forward_single(event):
         failed = []
         for grup_id in data['groups']:
             try:
-                # FORWARD ASLI (BC)
+                # PAKAI forward_messages(entity, messages, from_peer)
                 await user.forward_messages(
-                    destination=grup_id,
-                    messages=replied.id,
-                    from_peer=source_chat
+                    grup_id,           # entity (grup_id)
+                    replied.id,        # messages (message_id)
+                    source_chat        # from_peer (channel sumber)
                 )
                 count += 1
                 print(f"[AKUN LO] FORWARD ASLI → {grup_id}")
                 await asyncio.sleep(1)
 
             except Exception as e:
-                failed.append(f"{grup_id}: {str(e)[:30]}")
+                failed.append(f"{grup_id}: {str(e)[:40]}")
                 print(f"[GAGAL] {grup_id}: {e}")
 
         if count > 0:
@@ -293,7 +292,6 @@ async def forward_single(event):
 
     except Exception as e:
         await event.reply(f"Error: {str(e)}")
-
 # FORWARD ON/OFF
 @bot.on(events.NewMessage(pattern='/forward_on'))
 async def forward_on(event):
