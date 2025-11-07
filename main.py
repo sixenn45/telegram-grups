@@ -1,61 +1,222 @@
-# main.py → RAILWAY 0 CRASH + 24 JAM!
-from telethon.sync import TelegramClient
+# jinx_bot_forward.py — PUBLIC MODE: ORANG BISA PAKAI BOT LO!
+from telethon import TelegramClient, events
 from telethon.sessions import StringSession
-import random, time, os
+import os, json, asyncio, random
 
-API_ID   = int(os.getenv('API_ID'))
+# ENV
+API_ID = int(os.getenv('API_ID'))
 API_HASH = os.getenv('API_HASH')
-SESSION  = os.getenv('SESSION')
-GRUPS    = [g.strip() for g in os.getenv('GRUPS').split(',') if g.strip()]
+BOT_TOKEN = os.getenv('BOT_TOKEN')  # BOT LO
+SESSION = os.getenv('SESSION')      # SESSION AKUN LO
 
-KATA = [
-    """⚡READY SCRIPT PHISIN*G ALLS SOSMED
-   • SCRIPT AMAN DAN NYAMAN ANTI MERAH / BLOCK
-   • ANTI BANN
-   • SCRIPT MULAI DARI TELE,FB,WA,INSTA,DLL ALL SOSMED
-   💥 RESULT BISA DIKIRIM LEWAT EMAIL DAN TELEGRAM!!""",
+DATA_FILE = "jinx_data.json"
 
-    """⚡READY TOOLS EXPLOIT45
-   • DOMAIN GRABBER WP
-   • AUTO SCAN CVE
-   • AUTO UPLOAD SHELL
-   • AUTO UPLOAD SHELL
-   • WP BRUTE 
-   • BRUTE ALL CMS
-   💥 @toolsexploit""",
+def load():
+    if os.path.exists(DATA_FILE):
+        return json.load(open(DATA_FILE))
+    return {
+        "groups": [],
+        "pesan_list": [
+            "JOIN @Info_Scammer_Shell2",
+            "REKBER ON!!",
+            "OPEN PEMBELAJARAN SHELL",
+            "PM @jktblackhat UNTUK TOOLS"
+        ],
+        "use_random": True,
+        "delay": 90,
+        "spam_running": False,
+        "forward_channels": [],
+        "forward_running": False
+    }
 
-    """⚡BIKIN TOOLS PHISING DGN AI
-   • Zimbra, Office365, Netflix
-   • Auto generate page 10 detik
-   • Bypass 2FA pake Evilginx""",
+def save(data):
+    json.dump(data, open(DATA_FILE, 'w'), indent=2)
 
-    """⚡MINAT? PM @jktblackhat
-   • Privat class 1 on 1
-   • Tools premium gratis
-   • Update dork 24 jam""",
+data = load()
 
-    """⚡OPEN JASA BOT AUTOSEND GRUP TELEGRAM 100℅ ANTI BAN
-   • BONUS SCRIPT
-   • KATA KATA AUTO UPDATE
-   • FULL EMOJI
-   • SETTING DELAY SESUAI SELERA
-   ☘️ pm:@jktblackhat"""
-]
+bot = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+user = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 
-client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
+spam_task = None
+forward_task = None
 
-print("JINX SPAM ORANG 24 JAM JALAN DI RAILWAY — NO CRASH!")
-
-with client:
-    client.start()
-    while True:
-        pesan = random.choice(KATA) + "\n\nJASEB BY ✴️ @jktblackhat"
-        for g in GRUPS:
+# SPAM LOOP — CLEAN & RANDOM
+async def spam_loop():
+    await user.start()
+    while data['spam_running']:
+        pesan = random.choice(data['pesan_list']) if data['use_random'] and data['pesan_list'] else "SPAM JINX!"
+        for grup in data['groups']:
             try:
-                client.send_message(g, pesan)
-                print(f"[{time.strftime('%H:%M:%S')}] TERKIRIM → {g}")
-            except:
-                pass
-            delay = random.randint(30, 130)
-            print(f"Tunggu {delay} detik...")
-            time.sleep(delay)
+                await user.send_message(grup, pesan, silent=True)
+                print(f"SPAM → {grup}")
+            except Exception as e:
+                print(f"Error: {e}")
+            await asyncio.sleep(1)
+        await asyncio.sleep(data['delay'])
+
+# FORWARD LOOP
+async def forward_loop():
+    await user.start()
+    @user.on(events.NewMessage(chats=data['forward_channels']))
+    async def handler(event):
+        if not data['forward_running']: return
+        for grup in data['groups']:
+            try:
+                await event.forward_to(grup)
+                print(f"FORWARD → {grup}")
+                await asyncio.sleep(1)
+            except: pass
+    await user.run_until_disconnected()
+
+# === PUBLIC COMMANDS — ORANG BISA PAKAI! ===
+@bot.on(events.NewMessage(pattern='/start'))
+async def start(event):
+    await event.reply(
+        "SELAMAT DATANG DI JINX PUBLIC BOT\n\n"
+        "KAMU BISA PAKAI BOT INI!\n\n"
+        "FITUR:\n"
+        "/add @grup → Tambah grup\n"
+        "/del @grup → Hapus\n"
+        "/list → Lihat grup\n"
+        "/addpesan teks → Tambah pesan\n"
+        "/listpesan → Lihat pesan\n"
+        "/random_on /random_off → Ganti mode\n"
+        "/delay 60 → Ganti delay\n"
+        "/startspam → Mulai spam\n"
+        "/stopspam → Hentikan\n"
+        "/forward @channel → Tambah forward\n"
+        "/forward_on /forward_off → Nyalain\n"
+        "/status → Cek status\n\n"
+        "SPAM JALAN DARI AKUN @jktblackhat!"
+    )
+
+# TAMBAH GRUP
+@bot.on(events.NewMessage(pattern='/add (.+)'))
+async def add(event):
+    grup = event.pattern_match.group(1).strip()
+    if grup not in data['groups']:
+        data['groups'].append(grup)
+        save(data)
+        await event.reply(f"{grup} DITAMBAH!")
+    else:
+        await event.reply("SUDAH ADA")
+
+# HAPUS GRUP
+@bot.on(events.NewMessage(pattern='/del (.+)'))
+async def delete(event):
+    grup = event.pattern_match.group(1).strip()
+    if grup in data['groups']:
+        data['groups'].remove(grup)
+        save(data)
+        await event.reply(f"{grup} DIHAPUS!")
+    else:
+        await event.reply("GAK ADA")
+
+# LIHAT GRUP
+@bot.on(events.NewMessage(pattern='/list'))
+async def list(event):
+    txt = "GRUP AKTIF:\n" + "\n".join(data['groups']) if data['groups'] else "KOSONG"
+    await event.reply(txt)
+
+# TAMBAH PESAN
+@bot.on(events.NewMessage(pattern='/addpesan (.+)'))
+async def addpesan(event):
+    p = event.pattern_match.group(1).strip()
+    if p not in data['pesan_list']:
+        data['pesan_list'].append(p)
+        save(data)
+        await event.reply(f"PESAN DITAMBAH!")
+    else:
+        await event.reply("SUDAH ADA")
+
+# LIHAT PESAN
+@bot.on(events.NewMessage(pattern='/listpesan'))
+async def listpesan(event):
+    txt = "PESAN:\n" + "\n".join(f"{i+1}. {p}" for i, p in enumerate(data['pesan_list'])) if data['pesan_list'] else "KOSONG"
+    await event.reply(txt)
+
+# RANDOM ON/OFF
+@bot.on(events.NewMessage(pattern='/random_on'))
+async def random_on(event):
+    data['use_random'] = True; save(data); await event.reply("RANDOM NYALA")
+
+@bot.on(events.NewMessage(pattern='/random_off'))
+async def random_off(event):
+    data['use_random'] = False; save(data); await event.reply("RANDOM MATI")
+
+# DELAY
+@bot.on(events.NewMessage(pattern='/delay (.+)'))
+async def delay(event):
+    try:
+        d = int(event.pattern_match.group(1))
+        if 30 <= d <= 300:
+            data['delay'] = d; save(data); await event.reply(f"DELAY: {d}s")
+        else:
+            await event.reply("30-300 DETIK")
+    except:
+        await event.reply("ANGKA SAJA")
+
+# MULAI SPAM
+@bot.on(events.NewMessage(pattern='/startspam'))
+async def startspam(event):
+    global spam_task
+    if not data['spam_running']:
+        data['spam_running'] = True; save(data)
+        spam_task = asyncio.create_task(spam_loop())
+        await event.reply("SPAM JALAN 24 JAM!")
+    else:
+        await event.reply("SUDAH JALAN")
+
+# STOP SPAM
+@bot.on(events.NewMessage(pattern='/stopspam'))
+async def stopspam(event):
+    global spam_task
+    if data['spam_running']:
+        data['spam_running'] = False; save(data)
+        if spam_task: spam_task.cancel()
+        await event.reply("SPAM BERHENTI")
+    else:
+        await event.reply("BELUM JALAN")
+
+# FORWARD
+@bot.on(events.NewMessage(pattern='/forward (.+)'))
+async def forward_add(event):
+    c = event.pattern_match.group(1).strip()
+    if c not in data['forward_channels']:
+        data['forward_channels'].append(c); save(data); await event.reply(f"{c} DITAMBAH")
+    else:
+        await event.reply("SUDAH ADA")
+
+@bot.on(events.NewMessage(pattern='/forward_on'))
+async def forward_on(event):
+    global forward_task
+    if not data['forward_running']:
+        data['forward_running'] = True; save(data)
+        forward_task = asyncio.create_task(forward_loop())
+        await event.reply("FORWARD NYALA")
+    else:
+        await event.reply("SUDAH NYALA")
+
+@bot.on(events.NewMessage(pattern='/forward_off'))
+async def forward_off(event):
+    global forward_task
+    if data['forward_running']:
+        data['forward_running'] = False; save(data)
+        if forward_task: forward_task.cancel()
+        await event.reply("FORWARD MATI")
+    else:
+        await event.reply("BELUM NYALA")
+
+# STATUS
+@bot.on(events.NewMessage(pattern='/status'))
+async def status(event):
+    txt = f"SPAM: {'JALAN' if data['spam_running'] else 'MATI'}\n"
+    txt += f"FORWARD: {'JALAN' if data['forward_running'] else 'MATI'}\n"
+    txt += f"GRUP: {len(data['groups'])}\n"
+    txt += f"PESAN: {len(data['pesan_list'])}\n"
+    txt += f"RANDOM: {'ON' if data['use_random'] else 'OFF'}\n"
+    txt += f"DELAY: {data['delay']}s"
+    await event.reply(txt)
+
+print("JINX PUBLIC BOT JALAN — ORANG BISA PAKAI!")
+bot.run_until_disconnected()
