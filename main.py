@@ -14,7 +14,7 @@ data = {
     "groups": [],
     "pesan_list": ["JOIN @Info_Scammer_Shell2", "REKBER ON!!", "OPEN PEMBELAJARAN SHELL", "PM @jktblackhat UNTUK TOOLS"],
     "use_random": True,
-    "delay": 100,
+    "delay": 10,  # DELAY 10 DETIK AJA, BIAR CEPET
     "spam_running": False,
     "forward_channels": [],
     "forward_running": False,
@@ -80,7 +80,7 @@ async def add(event):
     grup = event.pattern_match.group(1).strip()
     if grup not in data['groups']:
         data['groups'].append(grup)
-        await event.reply(f"{grup} berhasil ditambah!")
+        await event.reply(f"{grup} berhasil ditambah! Total: {len(data['groups'])} grup")
     else:
         await event.reply("Sudah ada!")
 
@@ -90,7 +90,7 @@ async def delete(event):
     grup = event.pattern_match.group(1).strip()
     if grup in data['groups']:
         data['groups'].remove(grup)
-        await event.reply(f"{grup} berhasil dihapus!")
+        await event.reply(f"{grup} berhasil dihapus! Total: {len(data['groups'])} grup")
     else:
         await event.reply("Gak ada!")
 
@@ -136,11 +136,11 @@ async def random_off(event):
 async def delay(event):
     try:
         d = int(event.pattern_match.group(1))
-        if 30 <= d <= 300:
+        if 5 <= d <= 300:  # MINIMAL 5 DETIK, KONTOL!
             data['delay'] = d
             await event.reply(f"DELAY: {d}s")
         else:
-            await event.reply("30-300 DETIK")
+            await event.reply("5-300 DETIK")
     except:
         await event.reply("ANGKA SAJA")
 
@@ -177,58 +177,44 @@ async def forward_add(event):
     else:
         await event.reply("Sudah ada!")
 
-# FORWARD SINGLE - YANG BENER BIAR GA CRASH
+# FORWARD SINGLE - VERSI STABIL
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     try:
         if not event.is_reply:
-            await event.reply("**REPLY POST ASLI DARI CHANNEL, BUKAN YANG UDAH DIFORWARD!**")
+            await event.reply("**REPLY POST ASLI DARI CHANNEL!**")
             return
         
         replied = await event.get_reply_message()
+        current_groups = data['groups'].copy()  # PAKE COPY BIAR AMAN
         
-        if replied.forward:
-            await event.reply("**INI PESAN FORWARD!**\nReply post ASLI dari channel!")
-            return
-        
-        if not data['groups']:
+        if not current_groups:
             await event.reply("BELUM ADA GRUP! `/add @grup`")
             return
         
-        await event.reply("🔄 **PROSES FORWARD DIMULAI...**")
+        await event.reply(f"🔄 **PROSES FORWARD DIMULAI...**\nKe {len(current_groups)} grup dengan delay {data['delay']} detik")
         
         count = 0
-        for grup_name in data['groups']:
+        for i, grup_name in enumerate(current_groups, 1):
             try:
-                # PASTIIN USER CONNECTED, KONTOL!
-                if not user.is_connected():
-                    await user.start()
-                
-                grup_entity = await user.get_entity(grup_name)
-                
-                # FORWARD DENGAN ERROR HANDLING
-                await user.forward_messages(
-                    entity=grup_entity,
-                    messages=[replied.id],
-                    from_peer=replied.chat_id
-                )
+                print(f"🔄 [{i}/{len(current_groups)}] Processing: {grup_name}")
+                await user.forward_messages(grup_name, replied)
                 count += 1
-                print(f"✅ BERHASIL FORWARD KE {grup_name}")
+                print(f"✅ BERHASIL: {grup_name}")
                 
-                # DELAY 30 DETIK, BANGSAT!
-                await asyncio.sleep(30)
+                # DELAY HANYA JIKA BUKAN GRUP TERAKHIR
+                if i < len(current_groups):
+                    await asyncio.sleep(data['delay'])
                 
             except Exception as e:
-                print(f"❌ GAGAL KE {grup_name}: {e}")
+                print(f"❌ GAGAL: {grup_name} - {e}")
                 continue
         
-        await event.reply(f"✅ **SELESAI!** Berhasil forward ke **{count} grup!**")
+        await event.reply(f"✅ **SELESAI!**\nBerhasil: {count}/{len(current_groups)} grup\nDelay: {data['delay']} detik per grup")
         
     except Exception as e:
-        print(f"💀 ERROR PARAH DI HANDLER: {e}")
-        await event.reply(f"❌ **BOT ERROR:** {str(e)[:100]}...")
-    
-    print("🔰 FORWARD SELESAI, BOT MASIH JALAN...")
+        print(f"💀 ERROR: {e}")
+        await event.reply(f"❌ ERROR: {str(e)[:100]}")
 
 # FORWARD ON/OFF
 @bot.on(events.NewMessage(pattern='/forward_on'))
@@ -257,12 +243,6 @@ async def forward_off(event):
 async def status(event):
     txt = f"SPAM: {'JALAN' if data['spam_running'] else 'MATI'}\nFORWARD: {'JALAN' if data['forward_running'] else 'MATI'}\nGRUP: {len(data['groups'])}\nPESAN: {len(data['pesan_list'])}\nRANDOM: {'ON' if data['use_random'] else 'OFF'}\nDELAY: {data['delay']}s"
     await event.reply(txt)
-
-# KEEP-ALIVE BIAR BOT GA MATI
-async def keep_alive():
-    while True:
-        await asyncio.sleep(300)
-        print("❤️ BOT MASIH HIDUP...")
 
 print("JINX BOT JALAN — AKUN LO KIRIM SEMUA!")
 bot.run_until_disconnected()
