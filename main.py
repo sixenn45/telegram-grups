@@ -242,55 +242,56 @@ async def forward_add(event):
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     if not event.is_reply:
-        await event.reply("**REPLY POST DARI CHANNEL** → ketik `/forward`")
+        await event.reply("**REPLY POST DARI CHANNEL** → ketik `/forward`")  # ✅ 4 SPACES
         return
-
+    
     try:
-        replied = await event.get_reply_message()
+        replied = await event.get_reply_message()  # ✅ 8 SPACES
         if not replied:
-    await event.reply("**REPLY PESAN YANG MAU DIFORWARD, KONTOL!**")
-    return
-
+            await event.reply("**REPLY PESAN YANG BENER, KONTOL!**")  # ✅ 12 SPACES
+            return
+        
         # AMBIL CHANNEL ASLI
-        source_chat = replied.forward.chat_id if replied.forward else replied.chat_id
+        source_chat = replied.forward.chat_id if replied.forward else replied.chat_id  # ✅ 8 SPACES
+        
         if not source_chat:
-            await event.reply("Gak bisa detect channel sumber!")
+            await event.reply("Gak bisa detect channel sumber!")  # ✅ 12 SPACES
             return
-
+        
         # PAKAI PESAN DI BOT (replied.id) → BISA DIFORWARD!
-        message_id_in_bot = replied.id
-
+        message_id_in_bot = replied.id  # ✅ 8 SPACES
+        
         if not data['groups']:
-            await event.reply("BELUM ADA GRUP! `/add @grup`")
+            await event.reply("BELUM ADA GRUP! `/add @grup`")  # ✅ 12 SPACES
             return
-
+        
         count = 0
         failed = []
-        for grup_name in data['groups']:
+        for grup_name in data['groups']:  # ✅ 8 SPACES
             try:
-                grup_entity = await user.get_entity(grup_name)
-
+                grup_entity = await user.get_entity(grup_name)  # ✅ 16 SPACES
+                
                 # BC ASLI → FORWARD DARI PESAN DI BOT
-                await user.forward_messages(
+                await user.forward_messages(  # ✅ 16 SPACES
                     entity=grup_entity,
-                    messages=[message_id_in_bot],
+                    messages=[message_id_in_bot],  # ✅ JANGAN LUPA KURUNG SIKU, MEMEK!
                     from_peer=source_chat
                 )
-                count += 1
-                print(f"[AKUN LO] BC ASLI → {grup_name}")
-                await asyncio.sleep(1)
-
-            except Exception as e:
-                failed.append(f"{grup_name}: {str(e)[:40]}")
-                print(f"[GAGAL] {grup_name}: {e}")
-
-        if count > 0:
-            await event.reply(f"**BC ASLI BERHASIL!**\nPost diforward ke **{count} grup!**")
-        else:
-            await event.reply("Gagal ke semua grup!\nCek log Railway.")
-
-    except Exception as e:
-        await event.reply(f"Error: {str(e)}")
+                count += 1  # ✅ 16 SPACES
+                print(f"[AKUN LO] BC ASLI → {grup_name}")  # ✅ 16 SPACES
+                await asyncio.sleep(1)  # ✅ 16 SPACES
+                
+            except Exception as e:  # ✅ 12 SPACES
+                failed.append(f"{grup_name}: {str(e)[:40]}")  # ✅ 16 SPACES
+                print(f"[GAGAL] {grup_name}: {e}")  # ✅ 16 SPACES
+        
+        if count > 0:  # ✅ 8 SPACES
+            await event.reply(f"**BC ASLI BERHASIL!**\nPost diforward ke **{count} grup!**")  # ✅ 12 SPACES
+        else:  # ✅ 8 SPACES
+            await event.reply("Gagal ke semua grup!\nCek log Railway.")  # ✅ 12 SPACES
+            
+    except Exception as e:  # ✅ 4 SPACES
+        await event.reply(f"Error: {str(e)}")  # ✅ 8 SPACES
 # FORWARD ON/OFF
 @bot.on(events.NewMessage(pattern='/forward_on'))
 async def forward_on(event):
