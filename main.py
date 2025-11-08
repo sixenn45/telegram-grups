@@ -240,36 +240,41 @@ async def forward_add(event):
 
 ## # BC ASLI — PAKAI forward_messages DARI PESAN DI BOT!
 @bot.on(events.NewMessage(pattern='/forward'))
-# CEK DAN FIX BAGIAN INI DULU, KONTOL:
-
-@bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
+    if not event.is_reply:
+        await event.reply("**REPLY POST ASLI DARI CHANNEL @TOOLS_EXPLOIT, KONTOL!**")
+        return
+    
     try:
-        if not event.is_reply:
-            await event.reply("**REPLY POST DARI CHANNEL → ketik `/forward`**")
-            return
-        
         replied = await event.get_reply_message()
-        if not replied:
-            await event.reply("**GA ADA PESAN YANG DIREPLY, KONTOL!**")
-            return
         
-        # METHOD SIMPLER - FORWARD LANGSUNG DARI PESAN BOT
+        # UNTUK CHANNEL LU SENDIRI, PAKAI CHAT_ID CHANNEL
+        source_chat = "@TOOLS_EXPLOIT"  # ✅ LANGSUNG PAKAI USERNAME CHANNEL, MEMEK!
+        message_id = replied.id
+        
         await event.reply("🔄 **PROSES FORWARD DIMULAI...**")
         
         success = 0
-        for grup in data['groups']:
+        for grup_name in data['groups']:
             try:
-                # FORWARD LANGSUNG DARI PESAN YANG DIREPLY
+                # PASTIIN AKUN TERKONEKSI
+                if not user.is_connected():
+                    await user.start()
+                
+                grup_entity = await user.get_entity(grup_name)
+                
+                # FORWARD LANGSUNG DARI CHANNEL
                 await user.forward_messages(
-                    entity=grup,
-                    messages=[replied.id],
-                    from_peer=event.chat_id
+                    entity=grup_entity,
+                    messages=[message_id],
+                    from_peer=source_chat  # ✅ DARI CHANNEL LU SENDIRI, ANJING!
                 )
                 success += 1
-                await asyncio.sleep(2)
+                print(f"✅ BERHASIL FORWARD KE {grup_name}")
+                await asyncio.sleep(3)
+                
             except Exception as e:
-                print(f"Gagal ke {grup}: {e}")
+                print(f"❌ GAGAL KE {grup_name}: {e}")
         
         await event.reply(f"✅ **BERHASIL FORWARD KE {success} GRUP!**")
         
