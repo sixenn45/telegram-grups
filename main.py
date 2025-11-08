@@ -247,13 +247,12 @@ async def forward_single(event):
 
     try:
         replied = await event.get_reply_message()
-        if not replied or not replied.forward:
-            await event.reply("**HARUS FORWARD DARI CHANNEL!**\n"
-                              "Bukan pesan biasa!")
-            return
+        if not replied:
+    await event.reply("**REPLY PESAN YANG MAU DIFORWARD, KONTOL!**")
+    return
 
         # AMBIL CHANNEL ASLI
-        source_chat = replied.forward.from_id
+        source_chat = replied.forward.chat_id if replied.forward else replied.chat_id
         if not source_chat:
             await event.reply("Gak bisa detect channel sumber!")
             return
@@ -274,7 +273,7 @@ async def forward_single(event):
                 # BC ASLI → FORWARD DARI PESAN DI BOT
                 await user.forward_messages(
                     entity=grup_entity,
-                    messages=message_id_in_bot,
+                    messages=[message_id_in_bot],
                     from_peer=source_chat
                 )
                 count += 1
