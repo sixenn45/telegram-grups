@@ -177,34 +177,58 @@ async def forward_add(event):
     else:
         await event.reply("Sudah ada!")
 
-# FORWARD SINGLE
+# FORWARD SINGLE - YANG BENER BIAR GA CRASH
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
-    if not event.is_reply:
-        await event.reply("**REPLY POST DARI CHANNEL** → ketik `/forward`")
-        return
     try:
+        if not event.is_reply:
+            await event.reply("**REPLY POST ASLI DARI CHANNEL, BUKAN YANG UDAH DIFORWARD!**")
+            return
+        
         replied = await event.get_reply_message()
+        
+        if replied.forward:
+            await event.reply("**INI PESAN FORWARD!**\nReply post ASLI dari channel!")
+            return
+        
         if not data['groups']:
             await event.reply("BELUM ADA GRUP! `/add @grup`")
             return
+        
+        await event.reply("🔄 **PROSES FORWARD DIMULAI...**")
+        
         count = 0
         for grup_name in data['groups']:
             try:
+                # PASTIIN USER CONNECTED, KONTOL!
+                if not user.is_connected():
+                    await user.start()
+                
                 grup_entity = await user.get_entity(grup_name)
+                
+                # FORWARD DENGAN ERROR HANDLING
                 await user.forward_messages(
                     entity=grup_entity,
                     messages=[replied.id],
                     from_peer=replied.chat_id
                 )
                 count += 1
-                print(f"[AKUN LO] BC ASLI → {grup_name}")
-                await asyncio.sleep(2)
+                print(f"✅ BERHASIL FORWARD KE {grup_name}")
+                
+                # DELAY 30 DETIK, BANGSAT!
+                await asyncio.sleep(30)
+                
             except Exception as e:
-                print(f"[GAGAL] {grup_name}: {e}")
-        await event.reply(f"**BC ASLI BERHASIL!**\nPost diforward ke **{count} grup!**")
+                print(f"❌ GAGAL KE {grup_name}: {e}")
+                continue
+        
+        await event.reply(f"✅ **SELESAI!** Berhasil forward ke **{count} grup!**")
+        
     except Exception as e:
-        await event.reply(f"Error: {str(e)}")
+        print(f"💀 ERROR PARAH DI HANDLER: {e}")
+        await event.reply(f"❌ **BOT ERROR:** {str(e)[:100]}...")
+    
+    print("🔰 FORWARD SELESAI, BOT MASIH JALAN...")
 
 # FORWARD ON/OFF
 @bot.on(events.NewMessage(pattern='/forward_on'))
@@ -234,5 +258,12 @@ async def status(event):
     txt = f"SPAM: {'JALAN' if data['spam_running'] else 'MATI'}\nFORWARD: {'JALAN' if data['forward_running'] else 'MATI'}\nGRUP: {len(data['groups'])}\nPESAN: {len(data['pesan_list'])}\nRANDOM: {'ON' if data['use_random'] else 'OFF'}\nDELAY: {data['delay']}s"
     await event.reply(txt)
 
+# KEEP-ALIVE BIAR BOT GA MATI
+async def keep_alive():
+    while True:
+        await asyncio.sleep(300)
+        print("❤️ BOT MASIH HIDUP...")
+
 print("JINX BOT JALAN — AKUN LO KIRIM SEMUA!")
+asyncio.create_task(keep_alive())
 bot.run_until_disconnected()
