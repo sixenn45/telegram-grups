@@ -1,4 +1,4 @@
-# jinx_bot_forward.py — AKUN LO KIRIM SEMUA! BOT CUMA KOMANDO!
+# jinx_bot_forward.py — SPAM FORWARD 24 JAM OTOMATIS!
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import os, asyncio, random, re
@@ -14,7 +14,7 @@ data = {
     "groups": [],
     "pesan_list": ["JOIN @Info_Scammer_Shell2", "REKBER ON!!", "OPEN PEMBELAJARAN SHELL", "PM @jktblackhat UNTUK TOOLS"],
     "use_random": True,
-    "delay": 10,  # DELAY 10 DETIK AJA, BIAR CEPET
+    "delay": 30,  # DELAY DEFAULT 30 DETIK
     "spam_running": False,
     "forward_channels": [],
     "forward_running": False,
@@ -46,28 +46,41 @@ async def spam_loop():
         random_delay = data['delay'] + random.randint(-20, 20)
         await asyncio.sleep(max(80, random_delay))
 
-# FORWARD LOOP — AKUN LO KIRIM!
-async def forward_loop():
+# SPAM FORWARD LOOP — POST LAMA TERUS MENERUS 24 JAM!
+async def spam_forward_loop():
     await user.start()
-    print("[FORWARD] Listener aktif untuk channel:", data['forward_channels'])
-    @user.on(events.NewMessage(chats=data['forward_channels']))
-    async def handler(event):
-        if not data['forward_running']:
-            return
-        print(f"[AKUN LO] Post baru dari: {event.chat_id}")
-        for grup in data['groups']:
+    while data['forward_running']:
+        print(f"🔥 SPAM FORWARD DIMULAI! Channel: {data['forward_channels']}")
+        
+        for channel in data['forward_channels']:
             try:
-                await event.forward_to(grup)
-                print(f"[AKUN LO] FORWARD → {grup}")
-                await asyncio.sleep(1)
+                print(f"🔄 PROCESSING CHANNEL: {channel}")
+                # AMBIL 3 POST TERAKHIR BUAT DI-SPAM
+                async for message in user.iter_messages(channel, limit=3):
+                    for grup in data['groups']:
+                        try:
+                            await user.forward_messages(grup, message)
+                            print(f"✅ SPAM FORWARD → {grup}")
+                            # DELAY SETELAH SETIAP FORWARD
+                            await asyncio.sleep(data['delay'])
+                        except Exception as e:
+                            print(f"❌ GAGAL SPAM FORWARD KE {grup}: {e}")
+                            continue
+                
+                # DELAY SETELAH SELESAI 1 CHANNEL
+                await asyncio.sleep(10)
+                
             except Exception as e:
-                print(f"[ERROR FORWARD] {grup}: {e}")
-            await asyncio.sleep(2)
+                print(f"❌ GAGAL AKSES CHANNEL {channel}: {e}")
+                continue
+        
+        print(f"♻️ SPAM FORWARD LOOP SELESAI, TUNGGU {data['delay']} DETIK SEBELUM LOOP LAGI")
+        await asyncio.sleep(data['delay'])  # DELAY ANTAR LOOP
 
 # === MENU LENGKAP ===
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    menu = "SELAMAT DATANG DI JINX BOT!\n\nFITUR UTAMA:\n────────────────────\nSPAM OTOMATIS\n/startspam → Nyalain spam\n/stopspam → Matikan spam\n/addpesan [pesan] → Tambah pesan\n/listpesan → Lihat pesan\n/delay 100 → Ganti delay\n/random_on /random_off → Mode acak\n\nFORWARD POSTINGAN\n/forward_add @channel → Tambah channel\n/forward → REPLY post + kirim ke grup\n/forward_on → Auto forward nyala\n/forward_off → Auto forward mati\n\nGRUP TARGET\n/add @grup → Tambah grup\n/del @grup → Hapus grup\n/list → Lihat grup aktif\n\nCEK STATUS\n/status → Lihat semua status"
+    menu = "SELAMAT DATANG DI JINX BOT!\n\nFITUR UTAMA:\n────────────────────\nSPAM OTOMATIS\n/startspam → Nyalain spam\n/stopspam → Matikan spam\n/addpesan [pesan] → Tambah pesan\n/listpesan → Lihat pesan\n/delay 100 → Ganti delay\n/random_on /random_off → Mode acak\n\nSPAM FORWARD 24 JAM\n/forward_add @channel → Tambah channel\n/forward_on → Spam forward nyala\n/forward_off → Spam forward mati\n\nGRUP TARGET\n/add @grup → Tambah grup\n/del @grup → Hapus grup\n/list → Lihat grup aktif\n\nCEK STATUS\n/status → Lihat semua status"
     await event.reply(menu)
 
 @bot.on(events.NewMessage(pattern='/menu'))
@@ -136,11 +149,11 @@ async def random_off(event):
 async def delay(event):
     try:
         d = int(event.pattern_match.group(1))
-        if 5 <= d <= 300:  # MINIMAL 5 DETIK, KONTOL!
+        if 10 <= d <= 300:  # MINIMAL 10 DETIK, KONTOL!
             data['delay'] = d
-            await event.reply(f"DELAY: {d}s")
+            await event.reply(f"✅ DELAY DISET: {d}s\nSpam forward akan pakai delay ini!")
         else:
-            await event.reply("5-300 DETIK")
+            await event.reply("10-300 DETIK")
     except:
         await event.reply("ANGKA SAJA")
 
@@ -173,11 +186,11 @@ async def forward_add(event):
     c = event.pattern_match.group(1).strip()
     if c not in data['forward_channels']:
         data['forward_channels'].append(c)
-        await event.reply(f"{c} ditambah!")
+        await event.reply(f"✅ {c} ditambah!\nSekarang ketik `/forward_on` buat mulai spam!")
     else:
         await event.reply("Sudah ada!")
 
-# FORWARD SINGLE - VERSI STABIL
+# FORWARD SINGLE - MANUAL
 @bot.on(events.NewMessage(pattern='/forward'))
 async def forward_single(event):
     try:
@@ -186,44 +199,39 @@ async def forward_single(event):
             return
         
         replied = await event.get_reply_message()
-        current_groups = data['groups'].copy()  # PAKE COPY BIAR AMAN
+        current_groups = data['groups'].copy()
         
         if not current_groups:
             await event.reply("BELUM ADA GRUP! `/add @grup`")
             return
         
-        await event.reply(f"🔄 **PROSES FORWARD DIMULAI...**\nKe {len(current_groups)} grup dengan delay {data['delay']} detik")
+        await event.reply(f"🔄 **MANUAL FORWARD DIMULAI...**")
         
         count = 0
-        for i, grup_name in enumerate(current_groups, 1):
+        for grup_name in current_groups:
             try:
-                print(f"🔄 [{i}/{len(current_groups)}] Processing: {grup_name}")
                 await user.forward_messages(grup_name, replied)
                 count += 1
-                print(f"✅ BERHASIL: {grup_name}")
-                
-                # DELAY HANYA JIKA BUKAN GRUP TERAKHIR
-                if i < len(current_groups):
-                    await asyncio.sleep(data['delay'])
-                
+                print(f"✅ MANUAL FORWARD → {grup_name}")
+                await asyncio.sleep(5)
             except Exception as e:
-                print(f"❌ GAGAL: {grup_name} - {e}")
+                print(f"❌ GAGAL MANUAL FORWARD: {grup_name} - {e}")
                 continue
         
-        await event.reply(f"✅ **SELESAI!**\nBerhasil: {count}/{len(current_groups)} grup\nDelay: {data['delay']} detik per grup")
+        await event.reply(f"✅ **MANUAL FORWARD SELESAI!**\nBerhasil: {count} grup")
         
     except Exception as e:
         print(f"💀 ERROR: {e}")
         await event.reply(f"❌ ERROR: {str(e)[:100]}")
 
-# FORWARD ON/OFF
+# SPAM FORWARD ON/OFF
 @bot.on(events.NewMessage(pattern='/forward_on'))
 async def forward_on(event):
     global forward_task
     if not data['forward_running']:
         data['forward_running'] = True
-        forward_task = asyncio.create_task(forward_loop())
-        await event.reply("FORWARD NYALA!")
+        forward_task = asyncio.create_task(spam_forward_loop())
+        await event.reply(f"✅ **SPAM FORWARD NYALA 24 JAM!**\n📢 Channel: {data['forward_channels']}\n⏱️ Delay: {data['delay']} detik\n🔄 Post lama akan di-spam terus menerus!")
     else:
         await event.reply("SUDAH NYALA!")
 
@@ -234,15 +242,15 @@ async def forward_off(event):
         data['forward_running'] = False
         if forward_task:
             forward_task.cancel()
-        await event.reply("FORWARD MATI!")
+        await event.reply("❌ SPAM FORWARD DIMATIKAN!")
     else:
         await event.reply("SUDAH MATI!")
 
 # STATUS
 @bot.on(events.NewMessage(pattern='/status'))
 async def status(event):
-    txt = f"SPAM: {'JALAN' if data['spam_running'] else 'MATI'}\nFORWARD: {'JALAN' if data['forward_running'] else 'MATI'}\nGRUP: {len(data['groups'])}\nPESAN: {len(data['pesan_list'])}\nRANDOM: {'ON' if data['use_random'] else 'OFF'}\nDELAY: {data['delay']}s"
+    txt = f"SPAM: {'JALAN' if data['spam_running'] else 'MATI'}\nFORWARD: {'JALAN' if data['forward_running'] else 'MATI'}\nGRUP: {len(data['groups'])}\nCHANNEL: {len(data['forward_channels'])}\nPESAN: {len(data['pesan_list'])}\nRANDOM: {'ON' if data['use_random'] else 'OFF'}\nDELAY: {data['delay']}s"
     await event.reply(txt)
 
-print("JINX BOT JALAN — AKUN LO KIRIM SEMUA!")
+print("JINX BOT JALAN — SPAM FORWARD 24 JAM SIAP MENGHANCURKAN!")
 bot.run_until_disconnected()
