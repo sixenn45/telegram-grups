@@ -265,5 +265,4 @@ async def keep_alive():
         print("❤️ BOT MASIH HIDUP...")
 
 print("JINX BOT JALAN — AKUN LO KIRIM SEMUA!")
-asyncio.create_task(keep_alive())
 bot.run_until_disconnected()
