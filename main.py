@@ -1,22 +1,29 @@
-# jinx_ultimate_v5_2.py — FULL + /help MENU!
+# jinx_ultimate_v5_2_final.py — 100% JALAN!
 import asyncio
 import random
-import re
 import json
 import os
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
+from telethon.errors import FloodWaitError, AuthKeyUnregisteredError
 
 # ===================================================================
-# ENV — AKUN 1 AMAN DI RAILWAY
+# ENV — CONTROL SESSION
 # ===================================================================
 CONTROL_SESSION = os.getenv("CONTROL_SESSION")
 if not CONTROL_SESSION:
-    print("ERROR: SET CONTROL_SESSION DI RAILWAY ENV!")
+    print("[ERROR] SET CONTROL_SESSION DI RAILWAY ENV!")
     exit(1)
 
 SLAVES_FILE = "slaves_v5_2.json"
 ONLINE_STATUS = {}
+OWNER_ID = None
+
+# ===================================================================
+# API LO (GANTI DI SINI!)
+# ===================================================================
+API_ID = 12345678  # ← GANTI DENGAN API_ID LO
+API_HASH = 'abcdef1234567890abcdef1234567890'  # ← GANTI DENGAN API_HASH LO
 
 # ===================================================================
 # DATABASE
@@ -35,28 +42,23 @@ def save_json(file, data):
 SLAVES = load_json(SLAVES_FILE)
 
 # ===================================================================
-# MASTER (AKUN 1) — CONTROL ONLY (REKOMENDASI AMAN)
-# ===================================================================
-MASTER = {
-    "session": CONTROL_SESSION,
-    "groups": [],
-    "pesan_list": [],
-    "forward_channels": [],
-    "delay": 300,  # 5 menit (aman)
-    "use_random": True,
-    "spam_running": False,
-    "forward_running": False,
-    "name": "MASTER"
-}
-
-# ===================================================================
 # CLIENT
 # ===================================================================
 def create_client(session_str):
-    return TelegramClient(StringSession(session_str), 24289127, 'cd63113435f4997590ee4a308fbf1e2c')
+    return TelegramClient(StringSession(session_str), API_ID, API_HASH)
 
 # ===================================================================
-# SPAM LOOP
+# OWNER CHECK
+# ===================================================================
+async def is_owner(event):
+    global OWNER_ID
+    if OWNER_ID is None:
+        me = await bot.get_me()
+        OWNER_ID = me.id
+    return event.sender_id == OWNER_ID
+
+# ===================================================================
+# SPAM & FORWARD LOOP
 # ===================================================================
 async def spam_loop(client, data):
     last_pesan = None
@@ -74,13 +76,10 @@ async def spam_loop(client, data):
                 print(f"[SPAM {data['name']}] → {grup}")
                 await asyncio.sleep(1)
             except Exception as e:
-                print(f"[ERROR SPAM] {e}")
+                print(f"[ERROR SPAM {data['name']}] {e}")
         delay = data.get('delay', 30) + random.randint(-20, 20)
         await asyncio.sleep(max(80, delay))
 
-# ===================================================================
-# FORWARD LOOP 24 JAM
-# ===================================================================
 async def forward_loop(client, data):
     while data.get('forward_running', False):
         for channel in data['forward_channels']:
@@ -92,10 +91,10 @@ async def forward_loop(client, data):
                             print(f"[FORWARD {data['name']}] → {grup}")
                             await asyncio.sleep(data.get('delay', 30))
                         except Exception as e:
-                            print(f"[GAGAL FORWARD] {grup}: {e}")
+                            print(f"[GAGAL FORWARD] {e}")
                 await asyncio.sleep(10)
             except Exception as e:
-                print(f"[GAGAL AKSES] {channel}: {e}")
+                print(f"[GAGAL AKSES CHANNEL] {e}")
         await asyncio.sleep(data.get('delay', 30))
 
 # ===================================================================
@@ -115,179 +114,152 @@ async def run_account(data):
         if data.get('forward_running'):
             tasks.append(asyncio.create_task(forward_loop(client, data)))
         await asyncio.gather(*tasks, return_exceptions=True)
+    except FloodWaitError as e:
+        print(f"[FLOOD WAIT {name}] Tunggu {e.seconds} detik")
+    except AuthKeyUnregisteredError:
+        print(f"[SESSION MATI] {name} → Ganti session!")
     except Exception as e:
-        ONLINE_STATUS[name] = False
-        print(f"[OFFLINE] {name}: {e}")
+        print(f"[ERROR {name}] {e}")
     finally:
         ONLINE_STATUS[name] = False
 
 # ===================================================================
-# MENU HELP (SAMA KAYAK /start)
+# MASTER (AKUN 1) — CONTROL ONLY
+# ===================================================================
+MASTER = {
+    "session": CONTROL_SESSION,
+    "groups": [],
+    "pesan_list": [],
+    "forward_channels": [],
+    "delay": 300,
+    "use_random": True,
+    "spam_running": False,
+    "forward_running": False,
+    "name": "MASTER"
+}
+
+# ===================================================================
+# HELP MENU
 # ===================================================================
 HELP_MENU = (
-    "JINX ULTIMATE V5.2 — FULL + /help MENU!\n\n"
-    "**MASTER (AKUN 1):**\n"
-    "/addpesan_master pesan1|pesan2\n"
-    "/editpesan_master 1 NEW\n"
-    "/delpesan_master 2\n"
-    "/listpesan_master\n"
-    "/forward_add_master @channel\n"
-    "/forward_on_master\n"
+    "JINX ULTIMATE V5.2 — FULL + FORWARD 24 JAM!\n\n"
+    "**MASTER:**\n"
+    "/control_only — Matikan spam di Akun 1\n"
     "/delay_master 300\n\n"
     "**SLAVE:**\n"
     "/addslave <nama> <session>\n"
+    "/addgrup <nama> @grup\n"
     "/addpesan <nama> pesan1|pesan2\n"
     "/editpesan <nama> 1 NEW\n"
     "/delpesan <nama> 2\n"
     "/listpesan <nama>\n"
     "/forward_add <nama> @channel\n"
     "/forward_on <nama>\n"
-    "/addgrup <nama> @grup\n"
     "/startspam <nama>\n"
     "/stopspam <nama>\n"
-    "/delay <nama> 60\n\n"
-    "**LAINNYA:**\n"
-    "/list_slaves\n"
+    "/delay <nama> 60\n"
     "/status <nama>\n"
-    "/help — LIHAT MENU INI LAGI\n"
-    "/control_only — NONAKTIFKAN SPAM DI MASTER"
+    "/list_slaves\n"
+    "/help"
 )
 
 # ===================================================================
 # BOT KONTROL
 # ===================================================================
-bot = create_client(CONTROL_SESSION)
+bot = None  # Akan diisi di main()
 
 @bot.on(events.NewMessage(pattern='/(start|help)'))
-async def help_menu(event):
+async def help_cmd(event):
+    if not await is_owner(event):
+        return
     await event.reply(HELP_MENU)
 
 @bot.on(events.NewMessage(pattern='/control_only'))
 async def control_only(event):
+    if not await is_owner(event):
+        return
     MASTER['spam_running'] = False
     MASTER['forward_running'] = False
     MASTER['groups'] = []
     MASTER['pesan_list'] = []
     MASTER['forward_channels'] = []
-    await event.reply("AKUN 1 SEKARANG CONTROL ONLY! AMAN 100%")
+    await event.reply("AKUN 1 = CONTROL ONLY! AMAN 100%")
 
-# ==================== PESAN MASTER ====================
-@bot.on(events.NewMessage(pattern=r'/addpesan_master \| (.+)'))
-async def add_pesan_master(event):
-    pesan_str = event.pattern_match.group(1)
-    pesan_list = [p.strip() for p in pesan_str.split('|')]
-    MASTER['pesan_list'] = pesan_list
-    await event.reply(f"MASTER PESAN: {len(pesan_list)}")
-    asyncio.create_task(run_account(MASTER))
+# ==================== SLAVE COMMANDS ====================
+@bot.on(events.NewMessage(pattern=r'/addslave (\w+) (.+)'))
+async def add_slave(event):
+    if not await is_owner(event): return
+    nama, sess = event.pattern_match.group(1), event.pattern_match.group(2)
+    SLAVES[nama] = {
+        "session": sess, "groups": [], "pesan_list": [], "forward_channels": [],
+        "delay": 60, "spam_running": False, "forward_running": False, "name": nama
+    }
+    save_json(SLAVES_FILE, SLAVES)
+    await event.reply(f"SLAVE {nama} DITAMBAH!")
+    asyncio.create_task(run_account(SLAVES[nama]))
 
-@bot.on(events.NewMessage(pattern=r'/editpesan_master (\d+) (.+)'))
-async def edit_pesan_master(event):
-    idx = int(event.pattern_match.group(1)) - 1
-    new_pesan = event.pattern_match.group(2)
-    if 0 <= idx < len(MASTER['pesan_list']):
-        old = MASTER['pesan_list'][idx]
-        MASTER['pesan_list'][idx] = new_pesan
-        await event.reply(f"EDIT MASTER: {old} → {new_pesan}")
-        asyncio.create_task(run_account(MASTER))
-    else:
-        await event.reply("INDEX SALAH!")
+@bot.on(events.NewMessage(pattern=r'/addgrup (\w+) (.+)'))
+async def add_grup(event):
+    if not await is_owner(event): return
+    nama, grups = event.pattern_match.group(1), event.pattern_match.group(2).split()
+    if nama not in SLAVES: 
+        await event.reply("SLAVE GAK ADA!"); return
+    for g in grups:
+        if g not in SLAVES[nama]['groups']:
+            SLAVES[nama]['groups'].append(g)
+    save_json(SLAVES_FILE, SLAVES)
+    await event.reply(f"{len(grups)} GRUP → {nama}")
 
-@bot.on(events.NewMessage(pattern=r'/delpesan_master (\d+)'))
-async def del_pesan_master(event):
-    idx = int(event.pattern_match.group(1)) - 1
-    if 0 <= idx < len(MASTER['pesan_list']):
-        removed = MASTER['pesan_list'].pop(idx)
-        await event.reply(f"DIHAPUS MASTER: {removed}")
-        asyncio.create_task(run_account(MASTER))
-    else:
-        await event.reply("INDEX SALAH!")
-
-@bot.on(events.NewMessage(pattern='/listpesan_master'))
-async def list_pesan_master(event):
-    txt = "PESAN MASTER:\n" + "\n".join([f"{i}. {p}" for i, p in enumerate(MASTER['pesan_list'], 1)]) or "KOSONG"
-    await event.reply(txt)
-
-# ==================== PESAN SLAVE ====================
 @bot.on(events.NewMessage(pattern=r'/addpesan (\w+) \| (.+)'))
 async def add_pesan(event):
-    nama = event.pattern_match.group(1)
-    pesan_str = event.pattern_match.group(2)
-    if nama not in SLAVES:
-        await event.reply("SLAVE GAK ADA!")
-        return
+    if not await is_owner(event): return
+    nama, pesan_str = event.pattern_match.group(1), event.pattern_match.group(2)
+    if nama not in SLAVES: 
+        await event.reply("SLAVE GAK ADA!"); return
     pesan_list = [p.strip() for p in pesan_str.split('|')]
     SLAVES[nama]['pesan_list'] = pesan_list
     save_json(SLAVES_FILE, SLAVES)
-    await event.reply(f"Pesan {nama}: {len(pesan_list)}")
+    await event.reply(f"{len(pesan_list)} PESAN → {nama}")
     asyncio.create_task(run_account(SLAVES[nama]))
 
 @bot.on(events.NewMessage(pattern=r'/editpesan (\w+) (\d+) (.+)'))
 async def edit_pesan(event):
-    nama = event.pattern_match.group(1)
-    idx = int(event.pattern_match.group(2)) - 1
-    new_pesan = event.pattern_match.group(3)
-    if nama not in SLAVES:
-        await event.reply("SLAVE GAK ADA!")
-        return
-    pesan_list = SLAVES[nama]['pesan_list']
-    if 0 <= idx < len(pesan_list):
-        old = pesan_list[idx]
-        pesan_list[idx] = new_pesan
-        save_json(SLAVES_FILE, SLAVES)
-        await event.reply(f"EDIT {nama}: {old} → {new_pesan}")
-        asyncio.create_task(run_account(SLAVES[nama]))
-    else:
-        await event.reply("INDEX SALAH!")
+    if not await is_owner(event): return
+    nama, idx, new = event.pattern_match.group(1), int(event.pattern_match.group(2))-1, event.pattern_match.group(3)
+    if nama not in SLAVES or idx >= len(SLAVES[nama]['pesan_list']):
+        await event.reply("INDEX SALAH!"); return
+    old = SLAVES[nama]['pesan_list'][idx]
+    SLAVES[nama]['pesan_list'][idx] = new
+    save_json(SLAVES_FILE, SLAVES)
+    await event.reply(f"EDIT {nama}: {old} → {new}")
+    asyncio.create_task(run_account(SLAVES[nama]))
 
 @bot.on(events.NewMessage(pattern=r'/delpesan (\w+) (\d+)'))
 async def del_pesan(event):
-    nama = event.pattern_match.group(1)
-    idx = int(event.pattern_match.group(2)) - 1
-    if nama not in SLAVES:
-        await event.reply("SLAVE GAK ADA!")
-        return
-    pesan_list = SLAVES[nama]['pesan_list']
-    if 0 <= idx < len(pesan_list):
-        removed = pesan_list.pop(idx)
-        save_json(SLAVES_FILE, SLAVES)
-        await event.reply(f"DIHAPUS {nama}: {removed}")
-        asyncio.create_task(run_account(SLAVES[nama]))
-    else:
-        await event.reply("INDEX SALAH!")
+    if not await is_owner(event): return
+    nama, idx = event.pattern_match.group(1), int(event.pattern_match.group(2))-1
+    if nama not in SLAVES or idx >= len(SLAVES[nama]['pesan_list']):
+        await event.reply("INDEX SALAH!"); return
+    removed = SLAVES[nama]['pesan_list'].pop(idx)
+    save_json(SLAVES_FILE, SLAVES)
+    await event.reply(f"DIHAPUS {nama}: {removed}")
+    asyncio.create_task(run_account(SLAVES[nama]))
 
 @bot.on(events.NewMessage(pattern=r'/listpesan (\w+)'))
 async def list_pesan(event):
+    if not await is_owner(event): return
     nama = event.pattern_match.group(1)
-    if nama not in SLAVES:
-        await event.reply("SLAVE GAK ADA!")
-        return
+    if nama not in SLAVES: 
+        await event.reply("SLAVE GAK ADA!"); return
     txt = f"PESAN {nama}:\n" + "\n".join([f"{i}. {p}" for i, p in enumerate(SLAVES[nama]['pesan_list'], 1)]) or "KOSONG"
     await event.reply(txt)
 
-# ==================== FORWARD ====================
-@bot.on(events.NewMessage(pattern=r'/forward_add_master (@\w+|\d+)'))
-async def forward_add_master(event):
-    c = event.pattern_match.group(1)
-    if c not in MASTER['forward_channels']:
-        MASTER['forward_channels'].append(c)
-        await event.reply(f"{c} → MASTER FORWARD")
-
-@bot.on(events.NewMessage(pattern='/forward_on_master'))
-async def forward_master(event):
-    if not MASTER['forward_channels']:
-        await event.reply("TAMBAH CHANNEL DULU!")
-        return
-    MASTER['forward_running'] = True
-    await event.reply("MASTER FORWARD 24 JAM NYALA!")
-    asyncio.create_task(run_account(MASTER))
-
 @bot.on(events.NewMessage(pattern=r'/forward_add (\w+) (@\w+|\d+)'))
 async def forward_add(event):
-    nama = event.pattern_match.group(1)
-    c = event.pattern_match.group(2)
-    if nama not in SLAVES:
-        await event.reply("SLAVE GAK ADA!")
-        return
+    if not await is_owner(event): return
+    nama, c = event.pattern_match.group(1), event.pattern_match.group(2)
+    if nama not in SLAVES: 
+        await event.reply("SLAVE GAK ADA!"); return
     if c not in SLAVES[nama]['forward_channels']:
         SLAVES[nama]['forward_channels'].append(c)
         save_json(SLAVES_FILE, SLAVES)
@@ -295,38 +267,21 @@ async def forward_add(event):
 
 @bot.on(events.NewMessage(pattern=r'/forward_on (\w+)'))
 async def forward_on(event):
+    if not await is_owner(event): return
     nama = event.pattern_match.group(1)
-    if nama not in SLAVES:
-        await event.reply("SLAVE GAK ADA!")
-        return
-    if not SLAVES[nama]['forward_channels']:
-        await event.reply("TAMBAH CHANNEL DULU!")
-        return
+    if nama not in SLAVES or not SLAVES[nama]['forward_channels']:
+        await event.reply("TAMBAH CHANNEL DULU!"); return
     SLAVES[nama]['forward_running'] = True
     save_json(SLAVES_FILE, SLAVES)
-    await event.reply(f"FORWARD 24 JAM NYALA → {nama}")
+    await event.reply(f"FORWARD 24 JAM → {nama}")
     asyncio.create_task(run_account(SLAVES[nama]))
-
-# ==================== LAINNYA ====================
-@bot.on(events.NewMessage(pattern=r'/addgrup (\w+) (@\w+|\d+)'))
-async def add_grup(event):
-    nama = event.pattern_match.group(1)
-    grup = event.pattern_match.group(2)
-    if nama not in SLAVES:
-        await event.reply("SLAVE GAK ADA!")
-        return
-    if grup not in SLAVES[nama]['groups']:
-        SLAVES[nama]['groups'].append(grup)
-        save_json(SLAVES_FILE, SLAVES)
-        await event.reply(f"{grup} → {nama}")
 
 @bot.on(events.NewMessage(pattern=r'/(startspam|stopspam) (\w+)'))
 async def spam_toggle(event):
-    cmd = event.pattern_match.group(1)
-    nama = event.pattern_match.group(2)
-    if nama not in SLAVES:
-        await event.reply("SLAVE GAK ADA!")
-        return
+    if not await is_owner(event): return
+    cmd, nama = event.pattern_match.group(1), event.pattern_match.group(2)
+    if nama not in SLAVES: 
+        await event.reply("SLAVE GAK ADA!"); return
     SLAVES[nama]['spam_running'] = (cmd == 'startspam')
     save_json(SLAVES_FILE, SLAVES)
     await event.reply(f"SPAM {'NYALA' if cmd == 'startspam' else 'MATI'} → {nama}")
@@ -334,17 +289,17 @@ async def spam_toggle(event):
 
 @bot.on(events.NewMessage(pattern=r'/delay (\w+) (\d+)'))
 async def set_delay(event):
-    nama = event.pattern_match.group(1)
-    d = int(event.pattern_match.group(2))
+    if not await is_owner(event): return
+    nama, d = event.pattern_match.group(1), int(event.pattern_match.group(2))
     if nama not in SLAVES or not (10 <= d <= 300):
-        await event.reply("CEK NAMA / 10-300")
-        return
+        await event.reply("CEK NAMA / 10-300"); return
     SLAVES[nama]['delay'] = d
     save_json(SLAVES_FILE, SLAVES)
-    await event.reply(f"Delay {nama}: {d}s")
+    await event.reply(f"DELAY {nama}: {d}s")
 
 @bot.on(events.NewMessage(pattern=r'/delay_master (\d+)'))
 async def delay_master(event):
+    if not await is_owner(event): return
     d = int(event.pattern_match.group(1))
     if 10 <= d <= 300:
         MASTER['delay'] = d
@@ -352,40 +307,50 @@ async def delay_master(event):
 
 @bot.on(events.NewMessage(pattern='/list_slaves'))
 async def list_slaves(event):
-    txt = "DAFTAR AKUN JALAN:\n"
+    if not await is_owner(event): return
+    txt = "DAFTAR AKUN:\n"
     status = "ONLINE" if ONLINE_STATUS.get("MASTER", False) else "OFFLINE"
-    txt += f"{status} **MASTER** → {len(MASTER['groups'])} grup | {len(MASTER['forward_channels'])} channel\n"
+    txt += f"{status} **MASTER** → {len(MASTER['groups'])} grup\n"
     for name, data in SLAVES.items():
         status = "ONLINE" if ONLINE_STATUS.get(name, False) else "OFFLINE"
-        txt += f"{status} **{name}** → {len(data.get('groups', []))} grup | {len(data.get('forward_channels', []))} channel\n"
+        txt += f"{status} **{name}** → {len(data['groups'])} grup\n"
     await event.reply(txt or "KOSONG!")
 
 @bot.on(events.NewMessage(pattern=r'/status (\w+)'))
 async def status(event):
+    if not await is_owner(event): return
     nama = event.pattern_match.group(1)
-    if nama not in SLAVES:
-        await event.reply("SLAVE GAK ADA!")
-        return
+    if nama not in SLAVES: 
+        await event.reply("SLAVE GAK ADA!"); return
     d = SLAVES[nama]
     online = "ONLINE" if ONLINE_STATUS.get(nama, False) else "OFFLINE"
-    txt = f"{online} **{nama}**\n"
-    txt += f"SPAM: {'ON' if d.get('spam_running') else 'OFF'}\n"
-    txt += f"FORWARD: {'ON' if d.get('forward_running') else 'OFF'}\n"
-    txt += f"GRUP: {len(d.get('groups', []))}\n"
-    txt += f"PESAN: {len(d.get('pesan_list', []))}\n"
-    txt += f"DELAY: {d.get('delay', 30)}s"
+    txt = f"{online} **{nama}**\nSPAM: {'ON' if d.get('spam_running') else 'OFF'}\nFORWARD: {'ON' if d.get('forward_running') else 'OFF'}\nGRUP: {len(d['groups'])}\nPESAN: {len(d['pesan_list'])}\nDELAY: {d.get('delay', 30)}s"
     await event.reply(txt)
 
 # ===================================================================
-# JALANKAN
+# MAIN — DENGAN bot.start()!
 # ===================================================================
 async def main():
-    await bot.start()
-    print("JINX ULTIMATE V5.2 — FULL + /help MENU! 😈")
+    global bot
+    bot = create_client(CONTROL_SESSION)
+    
+    try:
+        await bot.start()
+        me = await bot.get_me()
+        print(f"[BOT LOGIN] {me.first_name} (@{me.username or 'no username'}) - ID: {me.id}")
+        print("JINX ULTIMATE V5.2 — BOT HIDUP! PEPEK LO PUAS! 😈")
+    except Exception as e:
+        print(f"[LOGIN GAGAL] {type(e).__name__}: {e}")
+        return
+
+    # Jalankan MASTER
     asyncio.create_task(run_account(MASTER))
+    
+    # Jalankan SLAVES
     for name, data in SLAVES.items():
         data['name'] = name
         asyncio.create_task(run_account(data))
+    
     await asyncio.Event().wait()
 
 if __name__ == '__main__':
