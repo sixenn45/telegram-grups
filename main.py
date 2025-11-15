@@ -53,7 +53,7 @@ MASTER = {
 # CLIENT
 # ===================================================================
 def create_client(session_str):
-    return TelegramClient(StringSession(session_str), 25920995, '46bd0c66abaa26db6eb62abbf7b1eaaa')
+    return TelegramClient(StringSession(session_str), 24289127, 'cd63113435f4997590ee4a308fbf1e2c')
 
 # ===================================================================
 # SPAM LOOP
