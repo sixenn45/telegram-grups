@@ -1,4 +1,4 @@
-# JINX_BOT_ULTIMATE.py - SEMUA FITUR LENGKAP!
+# JINX_BOT_ULTIMATE_FULL.py - SEMUA HANDLER WORK!
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import os, asyncio, random, re
@@ -35,11 +35,12 @@ user = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 spam_task = None
 forward_task = None
 
-# === SEMUA HANDLER LENGKAP ===
+# === SEMUA HANDLER LENGKAP - 100% WORK ===
 
 @bot.on(events.NewMessage)
 async def universal_handler(event):
     text = event.raw_text.strip()
+    print(f"🔍 RECEIVED: {text}")  # DEBUG
     
     # 🎯 TEST & INFO
     if text.startswith('/start'):
@@ -120,16 +121,16 @@ async def universal_handler(event):
         txt += f"**RANDOM MODE:** {'ON' if data['use_random'] else 'OFF'}"
         await event.reply(txt)
     
-    # 👥 MANAJEMEN AKUN
+    # 👥 MANAJEMEN AKUN - FIXED!
     elif text.startswith('/addaccount'):
         try:
-            parts = text.split()
+            parts = text.split(' ', 2)
             if len(parts) < 3:
                 await event.reply("❌ **Format:** `/addaccount nama_akun string_session`")
                 return
             
-            account_name = parts[1]
-            string_session = ''.join(parts[2:])
+            account_name = parts[1].strip()
+            string_session = parts[2].strip().replace(' ', '')
             
             await event.reply(f"🔄 **Testing session {account_name}...**")
             
@@ -159,8 +160,12 @@ async def universal_handler(event):
                 await event.reply(f"✅ **AKUN DITAMBAH!**\n\nNama: `{account_name}`\nUser: @{me.username}\nID: `{me.id}`\n\nKetik `/activate {account_name}`")
                 
             except Exception as e:
-                await event.reply(f"❌ **SESSION ERROR:** {str(e)[:100]}")
-                
+                error_msg = str(e)
+                if "Cannot unpack non-iterable NoneType object" in error_msg:
+                    await event.reply("❌ **SESSION EXPIRED/INVALID!** Buat session baru!")
+                else:
+                    await event.reply(f"❌ **SESSION ERROR:** {error_msg[:100]}")
+                    
         except Exception as e:
             await event.reply(f"💀 **SYSTEM ERROR:** {str(e)}")
     
