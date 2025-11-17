@@ -1,9 +1,9 @@
-# JINX_BOT_COMPLETE.py - SEMUA FITUR LENGKAP!
+# JINX_BOT_ULTIMATE_COMPLETE.py - SEMUA FITUR LENGKAP!
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import os, asyncio, random, re
 
-print("🔥 JINX BOT COMPLETE STARTING...")
+print("🔥 JINX BOT ULTIMATE COMPLETE STARTING...")
 
 # ENV VARIABLES
 API_ID = int(os.getenv('API_ID'))
@@ -20,7 +20,7 @@ data = {
     "global_spam_running": False,
     "forward_channels": [],
     "forward_running": False,
-    "individual_forward": {},  # BUAT FORWARD PER AKUN
+    "individual_forward": {},
     "master_account_active": False,
     "master_custom_pesan": [],
     "master_use_custom_pesan": False,
@@ -37,8 +37,6 @@ user = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 spam_task = None
 forward_task = None
 
-# === HANDLER LENGKAP SEMUA FITUR ===
-
 @bot.on(events.NewMessage)
 async def universal_handler(event):
     text = event.raw_text.strip()
@@ -46,11 +44,11 @@ async def universal_handler(event):
 
     # 🎯 TEST & INFO
     if text.startswith('/start'):
-        await event.reply("🔥 **JINX BOT COMPLETE AKTIF!**\nKetik `/menu` untuk semua command!")
+        await event.reply("🔥 **JINX BOT ULTIMATE COMPLETE AKTIF!**\nKetik `/menu` untuk semua command!")
     
     elif text.startswith('/menu'):
         menu = """
-**🔥 SIXENN45 VIP **
+**🔥 JINX BOT ULTIMATE COMPLETE - ALL FEATURES**
 
 **👥 SPAM CONTROL PER AKUN:**
 `/spam_on akun1` - Spam akun1 saja
@@ -66,28 +64,83 @@ async def universal_handler(event):
 `/forward_off akun1` - Stop forward akun1
 `/forward_off all` - Stop semua forward
 
-**📝 PESAN MASTER MANAGEMENT:**
+**⏰ DELAY MANAGEMENT:**
+`/masterdelay 60` - Set delay master
+`/setdelay_akun nama 90` - Delay custom per akun
+`/setjitter_akun nama 20` - Set random jitter
+`/resetdelay_akun nama` - Reset delay akun
+`/setdelay_master 45` - Delay custom akun 1
+`/setjitter_master 15` - Jitter custom akun 1
+
+**📝 PESAN MANAGEMENT:**
 `/addpesan teks` - Tambah pesan master
+`/addpesan_akun nama teks` - Pesan custom per akun
+`/addpesan_master teks` - Pesan custom akun 1
 `/deletepesan teks` - Hapus pesan master
-`/listpesan` - Lihat semua pesan
+`/listpesan` - Lihat pesan master
 `/clearallpesan` - Hapus semua pesan
+
+**🎯 PESAN MODE:**
+`/setpesanmode nama custom|master` - Set mode pesan akun
+`/setpesanmode_master custom|master` - Set mode akun 1
+
+**📢 GRUP MANAGEMENT:**
+`/add @grup` - Tambah grup global
+`/del @grup` - Hapus grup
+`/listgroups` - Lihat grup
+`/addgroup_akun nama @grup` - Grup khusus per akun
+`/delgroup_akun nama @grup` - Hapus grup khusus
+`/addgroup_master @grup` - Grup khusus akun 1
 
 **🎯 CHANNEL FORWARD:**
 `/forward_add @channel` - Tambah channel sumber
 `/forward_remove @channel` - Hapus channel
 `/listchannels` - Lihat channel sumber
+`/forward` - Manual forward (reply pesan)
 
-**👑 MANAJEMEN AKUN:**
-`/addaccount nama session` - Tambah akun
+**👑 AKUN 1 (MASTER):**
+`/master on` - Aktifkan akun 1
+`/master off` - Nonaktifkan akun 1
+`/masterinfo` - Info akun 1
+
+**👥 MANAJEMEN AKUN LAIN:**
+`/addaccount nama session` - Tambah akun baru
 `/activate nama` - Aktifkan akun
 `/deactivate nama` - Nonaktifkan akun
+`/delaccount nama` - Hapus akun
 `/listaccounts` - Lihat semua akun
+`/accountinfo nama` - Info detail akun
 
 **📊 INFO:**
 `/status` - Status lengkap
 `/test` - Test bot
 """
         await event.reply(menu)
+
+    elif text.startswith('/test'):
+        await event.reply("✅ **BOT ULTIMATE COMPLETE WORKING!** Semua systems go!")
+
+    elif text.startswith('/status'):
+        active_spam_count = sum(1 for status in data['individual_spam'].values() if status)
+        active_forward_count = sum(1 for status in data['individual_forward'].values() if status)
+        custom_delay_count = sum(1 for acc in data['accounts'].values() if acc.get('custom_delay', 0) > 0)
+        
+        txt = f"**📊 STATUS LENGKAP:**\n\n"
+        txt += f"**SPAM GLOBAL:** {'🟢 JALAN' if data['global_spam_running'] else '🔴 MATI'}\n"
+        txt += f"**SPAM INDIVIDUAL:** {active_spam_count} akun\n"
+        txt += f"**FORWARD GLOBAL:** {'🟢 JALAN' if data['forward_running'] else '🔴 MATI'}\n"
+        txt += f"**FORWARD INDIVIDUAL:** {active_forward_count} akun\n"
+        txt += f"**AKUN 1:** {'🟢 AKTIF' if data['master_account_active'] else '🔴 NONAKTIF'}\n"
+        txt += f"**AKUN LAIN:** {len(data['accounts'])} total, {len(data['active_accounts'])} aktif\n"
+        txt += f"**AKUN CUSTOM DELAY:** {custom_delay_count}\n"
+        txt += f"**GRUP GLOBAL:** {len(data['groups'])}\n"
+        txt += f"**GRUP KHUSUS AKUN 1:** {len(data['master_target_groups'])}\n"
+        txt += f"**CHANNEL FORWARD:** {len(data['forward_channels'])}\n"
+        txt += f"**PESAN MASTER:** {len(data['master_pesan_list'])}\n"
+        txt += f"**PESAN CUSTOM AKUN 1:** {len(data['master_custom_pesan'])}\n"
+        txt += f"**MASTER DELAY:** {data['master_delay']}s\n"
+        txt += f"**RANDOM MODE:** {'ON' if data['use_random'] else 'OFF'}"
+        await event.reply(txt)
 
     # 👥 SPAM CONTROL PER AKUN
     elif text.startswith('/spam_on'):
@@ -137,7 +190,7 @@ async def universal_handler(event):
         except Exception as e:
             await event.reply(f"❌ Error: {str(e)}")
 
-    # 🔄 FORWARD CONTROL PER AKUN - FITUR BARU!
+    # 🔄 FORWARD CONTROL PER AKUN
     elif text.startswith('/forward_on'):
         try:
             parts = text.split()
@@ -185,7 +238,178 @@ async def universal_handler(event):
         except Exception as e:
             await event.reply(f"❌ Error: {str(e)}")
 
-    # 📝 PESAN MASTER MANAGEMENT
+    # ⏰ DELAY MANAGEMENT
+    elif text.startswith('/masterdelay'):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                delay = int(parts[1])
+                if 10 <= delay <= 300:
+                    data['master_delay'] = delay
+                    await event.reply(f"✅ **MASTER DELAY DISET: {delay}s**")
+                else:
+                    await event.reply("❌ Delay harus antara 10-300 detik!")
+        except:
+            await event.reply("❌ Format: `/masterdelay 60`")
+
+    elif text.startswith('/setdelay_akun'):
+        try:
+            parts = text.split()
+            if len(parts) >= 3:
+                account_name = parts[1]
+                delay = int(parts[2])
+                if account_name in data['accounts']:
+                    if 10 <= delay <= 300:
+                        data['accounts'][account_name]['custom_delay'] = delay
+                        await event.reply(f"✅ **{account_name.upper()} DELAY DISET: {delay}s**")
+                    else:
+                        await event.reply("❌ Delay harus antara 10-300 detik!")
+                else:
+                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
+        except:
+            await event.reply("❌ Format: `/setdelay_akun nama 60`")
+
+    elif text.startswith('/setjitter_akun'):
+        try:
+            parts = text.split()
+            if len(parts) >= 3:
+                account_name = parts[1]
+                jitter = int(parts[2])
+                if account_name in data['accounts']:
+                    if 0 <= jitter <= 50:
+                        data['accounts'][account_name]['delay_jitter'] = jitter
+                        await event.reply(f"✅ **{account_name.upper()} JITTER DISET: ±{jitter}s**")
+                    else:
+                        await event.reply("❌ Jitter harus antara 0-50 detik!")
+                else:
+                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
+        except:
+            await event.reply("❌ Format: `/setjitter_akun nama 20`")
+
+    elif text.startswith('/resetdelay_akun'):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                account_name = parts[1]
+                if account_name in data['accounts']:
+                    data['accounts'][account_name]['custom_delay'] = 0
+                    data['accounts'][account_name]['delay_jitter'] = 10
+                    await event.reply(f"✅ **{account_name.upper()} DELAY DIRESET KE MASTER!**")
+                else:
+                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    elif text.startswith('/setdelay_master'):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                delay = int(parts[1])
+                if 10 <= delay <= 300:
+                    data['master_custom_delay'] = delay
+                    await event.reply(f"✅ **AKUN 1 DELAY DISET: {delay}s**")
+                else:
+                    await event.reply("❌ Delay harus antara 10-300 detik!")
+        except:
+            await event.reply("❌ Format: `/setdelay_master 60`")
+
+    elif text.startswith('/setjitter_master'):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                jitter = int(parts[1])
+                if 0 <= jitter <= 50:
+                    data['master_delay_jitter'] = jitter
+                    await event.reply(f"✅ **AKUN 1 JITTER DISET: ±{jitter}s**")
+                else:
+                    await event.reply("❌ Jitter harus antara 0-50 detik!")
+        except:
+            await event.reply("❌ Format: `/setjitter_master 20`")
+
+    # 📝 PESAN MANAGEMENT
+    elif text.startswith('/addpesan_akun'):
+        try:
+            parts = text.split(' ', 2)
+            if len(parts) >= 3:
+                account_name = parts[1]
+                pesan = parts[2]
+                
+                if account_name in data['accounts']:
+                    if pesan not in data['accounts'][account_name]['custom_pesan']:
+                        data['accounts'][account_name]['custom_pesan'].append(pesan)
+                        await event.reply(f"✅ **PESAN CUSTOM DITAMBAH UNTUK {account_name.upper()}!**\n\n{pesan}")
+                    else:
+                        await event.reply("❌ Pesan sudah ada di list akun ini!")
+                else:
+                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
+            else:
+                await event.reply("❌ **Format:** `/addpesan_akun nama_akun pesan_custom`")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    elif text.startswith('/setpesanmode'):
+        try:
+            parts = text.split()
+            if len(parts) >= 3:
+                account_name = parts[1]
+                mode = parts[2]
+                
+                if account_name in data['accounts']:
+                    if mode == 'custom':
+                        data['accounts'][account_name]['use_custom_pesan'] = True
+                        await event.reply(f"✅ **{account_name.upper()} SEKARANG PAKE PESAN CUSTOM!**")
+                    elif mode == 'master':
+                        data['accounts'][account_name]['use_custom_pesan'] = False
+                        await event.reply(f"✅ **{account_name.upper()} SEKARANG PAKE PESAN MASTER!**")
+                    else:
+                        await event.reply("❌ Mode harus 'custom' atau 'master'!")
+                else:
+                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
+            else:
+                await event.reply("❌ **Format:** `/setpesanmode nama_akun custom|master`")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    elif text.startswith('/setpesanmode_master'):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                mode = parts[1]
+                if mode == 'custom':
+                    data['master_use_custom_pesan'] = True
+                    await event.reply("✅ **AKUN 1 SEKARANG PAKE PESAN CUSTOM!**")
+                elif mode == 'master':
+                    data['master_use_custom_pesan'] = False
+                    await event.reply("✅ **AKUN 1 SEKARANG PAKE PESAN MASTER!**")
+                else:
+                    await event.reply("❌ Mode harus 'custom' atau 'master'!")
+            else:
+                await event.reply("❌ **Format:** `/setpesanmode_master custom|master`")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    elif text.startswith('/addpesan_master '):
+        try:
+            pesan = text.replace('/addpesan_master ', '').strip()
+            if pesan in data['master_custom_pesan']:
+                await event.reply("❌ Sudah ada di list custom akun 1!")
+            else:
+                data['master_custom_pesan'].append(pesan)
+                await event.reply(f"✅ **PESAN CUSTOM DITAMBAH UNTUK AKUN 1!**\n\n{pesan}")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    elif text.startswith('/addpesan '):
+        try:
+            pesan = text.replace('/addpesan ', '').strip()
+            if pesan in data['master_pesan_list']:
+                await event.reply("❌ Sudah ada di list master!")
+            else:
+                data['master_pesan_list'].append(pesan)
+                await event.reply(f"✅ **PESAN MASTER DITAMBAH!**\n\n{pesan}")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
     elif text.startswith('/deletepesan '):
         try:
             pesan_to_delete = text.replace('/deletepesan ', '').strip()
@@ -199,27 +423,100 @@ async def universal_handler(event):
 
     elif text.startswith('/clearallpesan'):
         data['master_pesan_list'] = []
-        await event.reply("✅ **SEMUA PESAN MASTER DIHAPUS!**\nTambah pesan baru dengan `/addpesan`")
-
-    elif text.startswith('/addpesan '):
-        try:
-            pesan = text.replace('/addpesan ', '').strip()
-            if pesan in data['master_pesan_list']:
-                await event.reply("❌ Sudah ada di list master!")
-            else:
-                data['master_pesan_list'].append(pesan)
-                await event.reply(f"✅ **PESAN MASTER DITAMBAH!**\n\n{pesan}")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
+        data['master_custom_pesan'] = []
+        for account in data['accounts'].values():
+            account['custom_pesan'] = []
+        await event.reply("✅ **SEMUA PESAN DIHAPUS!**\nPesan master & custom semua akun dikosongkan!")
 
     elif text.startswith('/listpesan'):
         if data['master_pesan_list']:
             txt = "**📝 PESAN MASTER:**\n\n" + "\n".join([f"{i+1}. {p}" for i, p in enumerate(data['master_pesan_list'])])
             await event.reply(txt)
         else:
-            await event.reply("❌ **Belum ada pesan!**\nKetik `/addpesan teks_pesan`")
+            await event.reply("❌ **Belum ada pesan master!**\nKetik `/addpesan teks_pesan`")
 
-    # 🎯 CHANNEL FORWARD MANAGEMENT
+    # 📢 GRUP MANAGEMENT
+    elif text.startswith('/add '):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                grup = parts[1]
+                if grup not in data['groups']:
+                    data['groups'].append(grup)
+                    await event.reply(f"✅ **{grup} ditambah!** Total: {len(data['groups'])} grup")
+                else:
+                    await event.reply("❌ Sudah ada!")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    elif text.startswith('/del '):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                grup = parts[1]
+                if grup in data['groups']:
+                    data['groups'].remove(grup)
+                    await event.reply(f"✅ **{grup} dihapus!** Total: {len(data['groups'])} grup")
+                else:
+                    await event.reply("❌ Grup tidak ditemukan!")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    elif text.startswith('/listgroups'):
+        if data['groups']:
+            txt = "**📢 GRUP GLOBAL:**\n\n" + "\n".join(data['groups'])
+            await event.reply(txt)
+        else:
+            await event.reply("❌ **Belum ada grup!**\nKetik `/add @grup`")
+
+    elif text.startswith('/addgroup_akun'):
+        try:
+            parts = text.split()
+            if len(parts) >= 3:
+                account_name = parts[1]
+                grup = parts[2]
+                if account_name in data['accounts']:
+                    if grup not in data['accounts'][account_name]['target_groups']:
+                        data['accounts'][account_name]['target_groups'].append(grup)
+                        await event.reply(f"✅ **{grup} ditambah ke {account_name}!**")
+                    else:
+                        await event.reply("❌ Grup sudah ada di list akun ini!")
+                else:
+                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    elif text.startswith('/delgroup_akun'):
+        try:
+            parts = text.split()
+            if len(parts) >= 3:
+                account_name = parts[1]
+                grup = parts[2]
+                if account_name in data['accounts']:
+                    if grup in data['accounts'][account_name]['target_groups']:
+                        data['accounts'][account_name]['target_groups'].remove(grup)
+                        await event.reply(f"✅ **{grup} dihapus dari {account_name}!**")
+                    else:
+                        await event.reply("❌ Grup tidak ada di list akun ini!")
+                else:
+                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    elif text.startswith('/addgroup_master '):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                grup = parts[1]
+                if grup not in data['master_target_groups']:
+                    data['master_target_groups'].append(grup)
+                    await event.reply(f"✅ **{grup} ditambah ke Akun 1!** Total: {len(data['master_target_groups'])} grup")
+                else:
+                    await event.reply("❌ Sudah ada di list akun 1!")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
+    # 🎯 CHANNEL FORWARD
     elif text.startswith('/forward_add '):
         try:
             parts = text.split()
@@ -269,7 +566,33 @@ async def universal_handler(event):
         else:
             await event.reply("❌ **Reply pesan yang mau di-forward!**")
 
-    # 👑 MANAJEMEN AKUN
+    # 👑 AKUN 1 (MASTER)
+    elif text.startswith('/master on'):
+        data['master_account_active'] = True
+        await event.reply("✅ **AKUN 1 (MASTER) DIAKTIFKAN!** Sekarang ikut spam/forward!")
+
+    elif text.startswith('/master off'):
+        data['master_account_active'] = False
+        await event.reply("❌ **AKUN 1 (MASTER) DINONAKTIFKAN!** Hanya kontrol saja.")
+
+    elif text.startswith('/masterinfo'):
+        status = "🟢 AKTIF" if data['master_account_active'] else "🔴 NONAKTIF"
+        pesan_mode = "CUSTOM" if data['master_use_custom_pesan'] else "MASTER"
+        
+        if data['master_custom_delay'] > 0:
+            delay_info = f"CUSTOM ({data['master_custom_delay']}s ±{data['master_delay_jitter']}s)"
+        else:
+            delay_info = f"MASTER ({data['master_delay']}s ±10s)"
+        
+        txt = f"**👑 INFO AKUN 1 (MASTER):**\n\n"
+        txt += f"**Status Spam:** {status}\n"
+        txt += f"**Mode Pesan:** {pesan_mode}\n"
+        txt += f"**Delay:** {delay_info}\n"
+        txt += f"**Pesan Custom:** {len(data['master_custom_pesan'])} pesan\n"
+        txt += f"**Grup Khusus:** {len(data['master_target_groups'])} grup\n"
+        await event.reply(txt)
+
+    # 👥 MANAJEMEN AKUN LAIN
     elif text.startswith('/addaccount'):
         try:
             parts = text.split(' ', 2)
@@ -350,6 +673,25 @@ async def universal_handler(event):
         except Exception as e:
             await event.reply(f"❌ Error: {str(e)}")
 
+    elif text.startswith('/delaccount'):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                account_name = parts[1]
+                if account_name in data['accounts']:
+                    if account_name in data['active_accounts']:
+                        data['active_accounts'].remove(account_name)
+                    if account_name in data['individual_spam']:
+                        del data['individual_spam'][account_name]
+                    if account_name in data['individual_forward']:
+                        del data['individual_forward'][account_name]
+                    del data['accounts'][account_name]
+                    await event.reply(f"✅ **{account_name} DIHAPUS!**")
+                else:
+                    await event.reply(f"❌ Akun {account_name} tidak ditemukan!")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
+
     elif text.startswith('/listaccounts'):
         if not data['accounts']:
             await event.reply("❌ **Belum ada akun!**")
@@ -359,28 +701,49 @@ async def universal_handler(event):
                 status = "🟢 AKTIF" if name in data['active_accounts'] else "🔴 NONAKTIF"
                 spam_status = "🔥 SPAM" if data['individual_spam'].get(name, False) else "💤 IDLE"
                 forward_status = "🔄 FORWARD" if data['individual_forward'].get(name, False) else "💤 IDLE"
+                pesan_mode = "CUSTOM" if info.get('use_custom_pesan', False) else "MASTER"
+                
                 txt += f"**{name}** - {status}\n"
-                txt += f"Spam: {spam_status} | Forward: {forward_status}\n"
+                txt += f"Spam: {spam_status} | Forward: {forward_status} | Pesan: {pesan_mode}\n"
                 txt += f"User: @{info.get('username', 'N/A')}\n\n"
             await event.reply(txt)
 
-    elif text.startswith('/status'):
-        active_spam_count = sum(1 for status in data['individual_spam'].values() if status)
-        active_forward_count = sum(1 for status in data['individual_forward'].values() if status)
-        txt = f"**📊 STATUS COMPLETE:**\n\n"
-        txt += f"**SPAM GLOBAL:** {'🟢 JALAN' if data['global_spam_running'] else '🔴 MATI'}\n"
-        txt += f"**SPAM INDIVIDUAL:** {active_spam_count} akun\n"
-        txt += f"**FORWARD GLOBAL:** {'🟢 JALAN' if data['forward_running'] else '🔴 MATI'}\n"
-        txt += f"**FORWARD INDIVIDUAL:** {active_forward_count} akun\n"
-        txt += f"**AKUN 1:** {'🟢 AKTIF' if data['master_account_active'] else '🔴 NONAKTIF'}\n"
-        txt += f"**AKUN LAIN:** {len(data['accounts'])} total, {len(data['active_accounts'])} aktif\n"
-        txt += f"**GRUP:** {len(data['groups'])}\n"
-        txt += f"**CHANNEL:** {len(data['forward_channels'])}\n"
-        txt += f"**PESAN MASTER:** {len(data['master_pesan_list'])}\n"
-        await event.reply(txt)
-
-    elif text.startswith('/test'):
-        await event.reply("✅ **BOT COMPLETE WORKING!** Semua fitur ready!")
+    elif text.startswith('/accountinfo'):
+        try:
+            parts = text.split()
+            if len(parts) >= 2:
+                account_name = parts[1]
+                if account_name in data['accounts']:
+                    acc = data['accounts'][account_name]
+                    status = "🟢 AKTIF" if account_name in data['active_accounts'] else "🔴 NONAKTIF"
+                    pesan_mode = "CUSTOM" if acc.get('use_custom_pesan', False) else "MASTER"
+                    spam_status = "🔥" if data['individual_spam'].get(account_name, False) else "💤"
+                    forward_status = "🔄" if data['individual_forward'].get(account_name, False) else "💤"
+                    
+                    # INFO DELAY
+                    if acc.get('custom_delay', 0) > 0:
+                        delay_info = f"CUSTOM ({acc['custom_delay']}s ±{acc.get('delay_jitter', 10)}s)"
+                    else:
+                        delay_info = f"MASTER ({data['master_delay']}s ±10s)"
+                    
+                    txt = f"**📊 INFO {account_name.upper()}:**\n\n"
+                    txt += f"**Status:** {status} {spam_status} {forward_status}\n"
+                    txt += f"**User:** @{acc.get('username', 'N/A')}\n"
+                    txt += f"**Mode Pesan:** {pesan_mode}\n"
+                    txt += f"**Delay:** {delay_info}\n"
+                    txt += f"**Pesan Custom:** {len(acc.get('custom_pesan', []))} pesan\n"
+                    txt += f"**Grup Khusus:** {len(acc.get('target_groups', []))} grup\n"
+                    
+                    if acc.get('custom_pesan'):
+                        txt += "\n**Daftar Pesan Custom:**\n"
+                        for i, p in enumerate(acc['custom_pesan'][:3], 1):
+                            txt += f"{i}. {p}\n"
+                    
+                    await event.reply(txt)
+                else:
+                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
+        except Exception as e:
+            await event.reply(f"❌ Error: {str(e)}")
 
     else:
         await event.reply("❌ **COMMAND TIDAK DIKENAL!**\nKetik `/menu` untuk list command.")
@@ -462,18 +825,15 @@ async def spam_loop():
         
         await asyncio.sleep(5)
 
-# FORWARD LOOP YANG DIMODIFIKASI
+# FORWARD LOOP
 async def forward_loop():
     await user.start()
     while data['forward_running'] or any(data['individual_forward'].values()):
-        # CEK APAKAH ADA AKUN YANG HARUS FORWARD
         accounts_to_forward = []
         
-        # AKUN 1 (MASTER) - kalo global forward nyala
         if data['forward_running'] and data['master_account_active']:
             accounts_to_forward.append('master')
         
-        # AKUN LAIN - kalo global forward nyala ATAU individual forward nyala
         for account_name in data['active_accounts']:
             if data['forward_running'] or data['individual_forward'].get(account_name, False):
                 accounts_to_forward.append(account_name)
@@ -482,10 +842,8 @@ async def forward_loop():
             await asyncio.sleep(10)
             continue
         
-        # JALANKAN FORWARD UNTUK SETIAP AKUN
         for account_ref in accounts_to_forward:
             if account_ref == 'master':
-                # HANDLE AKUN 1 (MASTER)
                 master_delay = data['master_custom_delay'] if data['master_custom_delay'] > 0 else data['master_delay']
                 master_target = data['master_target_groups'] if data['master_target_groups'] else data['groups']
                 
@@ -504,7 +862,6 @@ async def forward_loop():
                         print(f"[CHANNEL ERROR AKUN-1] {channel}: {e}")
             
             else:
-                # HANDLE AKUN LAIN
                 account_name = account_ref
                 if account_name in data['accounts']:
                     account = data['accounts'][account_name]
@@ -535,6 +892,6 @@ async def forward_loop():
         
         await asyncio.sleep(data['master_delay'])
 
-print("🚀 JINX BOT COMPLETE STARTED!")
-print("📋 SEMUA FITUR READY: Spam + Forward per akun + Management pesan")
+print("🚀 JINX BOT ULTIMATE COMPLETE STARTED!")
+print("📋 SEMUA FITUR LENGKAP READY!")
 bot.run_until_disconnected()
