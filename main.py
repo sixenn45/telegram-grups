@@ -1,15 +1,19 @@
-# JINX_BOT_ULTIMATE_COMPLETE.py - SEMUA FITUR LENGKAP!
+# JINX_BOT_ULTIMATE_FIXED.py - SEMUA FITUR + BUG FIXED!
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import os, asyncio, random, re
 
-print("🔥 JINX BOT ULTIMATE COMPLETE STARTING...")
+print("🔥 JINX BOT ULTIMATE FIXED STARTING...")
 
 # ENV VARIABLES
 API_ID = int(os.getenv('API_ID'))
 API_HASH = os.getenv('API_HASH')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 SESSION = os.getenv('SESSION')
+
+# GLOBAL VARIABLES - FIX BUG SPAM_TASK
+spam_task = None
+forward_task = None
 
 # DATA STORAGE LENGKAP
 data = {
@@ -29,13 +33,11 @@ data = {
     "master_delay_jitter": 10,
     "accounts": {},
     "active_accounts": [],
-    "individual_spam": {}
+    "individual_spam": {}  # FIX: INITIAL STATE
 }
 
 bot = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 user = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
-spam_task = None
-forward_task = None
 
 @bot.on(events.NewMessage)
 async def universal_handler(event):
@@ -44,11 +46,11 @@ async def universal_handler(event):
 
     # 🎯 TEST & INFO
     if text.startswith('/start'):
-        await event.reply("🔥 **JINX BOT ULTIMATE COMPLETE AKTIF!**\nKetik `/menu` untuk semua command!")
+        await event.reply("🔥 **JINX BOT ULTIMATE FIXED AKTIF!**\nKetik `/menu` untuk semua command!")
     
     elif text.startswith('/menu'):
         menu = """
-**🔥 JINX BOT ULTIMATE COMPLETE - ALL FEATURES**
+**🔥 JINX BOT ULTIMATE FIXED - ALL FEATURES**
 
 **👥 SPAM CONTROL PER AKUN:**
 `/spam_on akun1` - Spam akun1 saja
@@ -118,7 +120,7 @@ async def universal_handler(event):
         await event.reply(menu)
 
     elif text.startswith('/test'):
-        await event.reply("✅ **BOT ULTIMATE COMPLETE WORKING!** Semua systems go!")
+        await event.reply("✅ **BOT ULTIMATE FIXED WORKING!** Semua systems go!")
 
     elif text.startswith('/status'):
         active_spam_count = sum(1 for status in data['individual_spam'].values() if status)
@@ -142,7 +144,7 @@ async def universal_handler(event):
         txt += f"**RANDOM MODE:** {'ON' if data['use_random'] else 'OFF'}"
         await event.reply(txt)
 
-    # 👥 SPAM CONTROL PER AKUN
+    # 👥 SPAM CONTROL PER AKUN - FIXED!
     elif text.startswith('/spam_on'):
         try:
             parts = text.split()
@@ -151,12 +153,18 @@ async def universal_handler(event):
                 
                 if target == 'all':
                     data['global_spam_running'] = True
+                    global spam_task
                     if spam_task is None or spam_task.done():
                         spam_task = asyncio.create_task(spam_loop())
                     await event.reply(f"✅ **SPAM ALL DIMULAI!**\nAkun aktif: {len(data['active_accounts'])}")
                 
                 elif target in data['accounts']:
+                    # FIX: INITIALIZE JIKA BELUM ADA
+                    if target not in data['individual_spam']:
+                        data['individual_spam'][target] = False
+                    
                     data['individual_spam'][target] = True
+                    global spam_task
                     if spam_task is None or spam_task.done():
                         spam_task = asyncio.create_task(spam_loop())
                     await event.reply(f"✅ **SPAM {target.upper()} DIMULAI!**")
@@ -190,7 +198,7 @@ async def universal_handler(event):
         except Exception as e:
             await event.reply(f"❌ Error: {str(e)}")
 
-    # 🔄 FORWARD CONTROL PER AKUN
+    # 🔄 FORWARD CONTROL PER AKUN - FIXED!
     elif text.startswith('/forward_on'):
         try:
             parts = text.split()
@@ -199,12 +207,18 @@ async def universal_handler(event):
                 
                 if target == 'all':
                     data['forward_running'] = True
+                    global forward_task
                     if forward_task is None or forward_task.done():
                         forward_task = asyncio.create_task(forward_loop())
                     await event.reply(f"✅ **FORWARD ALL DIMULAI!**\nChannel: {len(data['forward_channels'])}")
                 
                 elif target in data['accounts']:
+                    # FIX: INITIALIZE JIKA BELUM ADA
+                    if target not in data['individual_forward']:
+                        data['individual_forward'][target] = False
+                    
                     data['individual_forward'][target] = True
+                    global forward_task
                     if forward_task is None or forward_task.done():
                         forward_task = asyncio.create_task(forward_loop())
                     await event.reply(f"✅ **FORWARD {target.upper()} DIMULAI!**")
@@ -628,6 +642,10 @@ async def universal_handler(event):
                     'delay_jitter': 10
                 }
                 
+                # FIX: INITIALIZE SPAM & FORWARD STATE
+                data['individual_spam'][account_name] = False
+                data['individual_forward'][account_name] = False
+                
                 await event.reply(f"✅ **AKUN DITAMBAH!**\n\nNama: `{account_name}`\nUser: @{me.username}\nID: `{me.id}`\n\nKetik `/activate {account_name}`")
                 
             except Exception as e:
@@ -892,6 +910,6 @@ async def forward_loop():
         
         await asyncio.sleep(data['master_delay'])
 
-print("🚀 JINX BOT ULTIMATE COMPLETE STARTED!")
-print("📋 SEMUA FITUR LENGKAP READY!")
+print("🚀 JINX BOT ULTIMATE FIXED STARTED!")
+print("📋 SEMUA BUG SUDAH DIFIX!")
 bot.run_until_disconnected()
