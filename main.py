@@ -1,9 +1,10 @@
-# JINX_BOT_ULTIMATE_FIXED.py - SEMUA FITUR + BUG FIXED!
+# JINX_BOT_ULTIMATE_FIXED_WITH_ERROR_HANDLING.py
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
+from telethon.errors import PersistentTimestampOutdatedError
 import os, asyncio, random, re
 
-print("🔥 JINX BOT ULTIMATE FIXED STARTING...")
+print("🔥 JINX BOT ULTIMATE FIXED WITH ERROR HANDLING STARTING...")
 
 # ENV VARIABLES
 API_ID = int(os.getenv('API_ID'))
@@ -33,11 +34,35 @@ data = {
     "master_delay_jitter": 10,
     "accounts": {},
     "active_accounts": [],
-    "individual_spam": {}  # FIX: INITIAL STATE
+    "individual_spam": {}
 }
 
 bot = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 user = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
+
+async def restart_all_clients():
+    """Restart semua Telegram client untuk handle error"""
+    try:
+        await user.disconnect()
+        await asyncio.sleep(15)
+        await user.start()
+        print("✅ ALL CLIENTS RESTARTED AFTER ERROR")
+        return True
+    except Exception as e:
+        print(f"💀 RESTART FAILED: {e}")
+        return False
+
+async def handle_telegram_error():
+    """Handle Telegram internal errors dengan reconnect"""
+    try:
+        await user.disconnect()
+        await asyncio.sleep(20)
+        await user.start()
+        print("✅ CLIENT RECONNECTED AFTER TELEGRAM ERROR")
+        return True
+    except Exception as e:
+        print(f"💀 RECONNECT FAILED: {e}")
+        return False
 
 @bot.on(events.NewMessage)
 async def universal_handler(event):
@@ -49,11 +74,11 @@ async def universal_handler(event):
 
     # 🎯 TEST & INFO
     if text.startswith('/start'):
-        await event.reply("🔥 **JINX BOT ULTIMATE FIXED AKTIF!**\nKetik `/menu` untuk semua command!")
+        await event.reply("🔥 **JINX BOT ULTIMATE FIXED WITH ERROR HANDLING AKTIF!**\nKetik `/menu` untuk semua command!")
     
     elif text.startswith('/menu'):
         menu = """
-**🔥 HimeBOtV1**
+**🔥 JINX BOT ULTIMATE FIXED - ALL FEATURES + ERROR HANDLING**
 
 **👥 SPAM CONTROL PER AKUN:**
 `/spam_on akun1` - Spam akun1 saja
@@ -119,11 +144,20 @@ async def universal_handler(event):
 **📊 INFO:**
 `/status` - Status lengkap
 `/test` - Test bot
+`/restart` - Restart client manual
 """
         await event.reply(menu)
 
     elif text.startswith('/test'):
-        await event.reply("✅ **BOT ULTIMATE FIXED WORKING!** Semua systems go!")
+        await event.reply("✅ **BOT ULTIMATE FIXED WITH ERROR HANDLING WORKING!** Semua systems go!")
+
+    elif text.startswith('/restart'):
+        await event.reply("🔄 **RESTARTING CLIENTS...**")
+        success = await restart_all_clients()
+        if success:
+            await event.reply("✅ **CLIENTS RESTARTED SUCCESSFULLY!**")
+        else:
+            await event.reply("❌ **RESTART FAILED!**")
 
     elif text.startswith('/status'):
         active_spam_count = sum(1 for status in data['individual_spam'].values() if status)
@@ -149,7 +183,7 @@ async def universal_handler(event):
 
     # 👥 SPAM CONTROL PER AKUN - FIXED!
     elif text.startswith('/spam_on'):
-        global spam_task  # FIX: TARUH DI SINI JUGA
+        global spam_task
         try:
             parts = text.split()
             if len(parts) >= 2:
@@ -162,7 +196,6 @@ async def universal_handler(event):
                     await event.reply(f"✅ **SPAM ALL DIMULAI!**\nAkun aktif: {len(data['active_accounts'])}")
                 
                 elif target in data['accounts']:
-                    # FIX: INITIALIZE JIKA BELUM ADA
                     if target not in data['individual_spam']:
                         data['individual_spam'][target] = False
                     
@@ -202,7 +235,7 @@ async def universal_handler(event):
 
     # 🔄 FORWARD CONTROL PER AKUN - FIXED!
     elif text.startswith('/forward_on'):
-        global forward_task  # FIX: TARUH DI SINI JUGA
+        global forward_task
         try:
             parts = text.split()
             if len(parts) >= 2:
@@ -215,7 +248,6 @@ async def universal_handler(event):
                     await event.reply(f"✅ **FORWARD ALL DIMULAI!**\nChannel: {len(data['forward_channels'])}")
                 
                 elif target in data['accounts']:
-                    # FIX: INITIALIZE JIKA BELUM ADA
                     if target not in data['individual_forward']:
                         data['individual_forward'][target] = False
                     
@@ -767,152 +799,207 @@ async def universal_handler(event):
     else:
         await event.reply("❌ **COMMAND TIDAK DIKENAL!**\nKetik `/menu` untuk list command.")
 
-# SPAM LOOP
+# SPAM LOOP DENGAN ERROR HANDLING
 async def spam_loop():
-    global spam_task  # FIX: ADD GLOBAL DECLARATION HERE TOO
+    global spam_task
+    restart_counter = 0
+    
     await user.start()
     while data['global_spam_running'] or any(data['individual_spam'].values()):
-        accounts_to_spam = []
-        
-        if data['global_spam_running'] and data['master_account_active']:
-            accounts_to_spam.append('master')
-        
-        for account_name in data['active_accounts']:
-            if data['global_spam_running'] or data['individual_spam'].get(account_name, False):
-                accounts_to_spam.append(account_name)
-        
-        if not accounts_to_spam:
-            await asyncio.sleep(5)
-            continue
-        
-        for account_ref in accounts_to_spam:
-            if account_ref == 'master':
-                master_delay = data['master_custom_delay'] if data['master_custom_delay'] > 0 else data['master_delay']
-                master_jitter = data['master_delay_jitter']
+        try:
+            # AUTO-RESTART SETIAP 2 JAM UNTUK CEGAH ERROR
+            restart_counter += 1
+            if restart_counter >= 7200:  # 2 jam
+                await restart_all_clients()
+                restart_counter = 0
+            
+            accounts_to_spam = []
+            
+            if data['global_spam_running'] and data['master_account_active']:
+                accounts_to_spam.append('master')
+            
+            for account_name in data['active_accounts']:
+                if data['global_spam_running'] or data['individual_spam'].get(account_name, False):
+                    accounts_to_spam.append(account_name)
+            
+            if not accounts_to_spam:
+                await asyncio.sleep(5)
+                continue
+            
+            for account_ref in accounts_to_spam:
+                if account_ref == 'master':
+                    master_delay = data['master_custom_delay'] if data['master_custom_delay'] > 0 else data['master_delay']
+                    master_jitter = data['master_delay_jitter']
+                    
+                    if data['master_use_custom_pesan'] and data['master_custom_pesan']:
+                        master_pesan_list = data['master_custom_pesan']
+                    else:
+                        master_pesan_list = data['master_pesan_list']
+                    
+                    if master_pesan_list:
+                        master_pesan = random.choice(master_pesan_list) if data['use_random'] else master_pesan_list[0]
+                        master_target = data['master_target_groups'] if data['master_target_groups'] else data['groups']
+                        
+                        for grup in master_target:
+                            try:
+                                await user.send_message(grup, master_pesan)
+                                print(f"[AKUN-1 SPAM] → {grup}")
+                                await asyncio.sleep(1)
+                            except Exception as e:
+                                print(f"[ERROR AKUN-1] {grup}: {e}")
+                        
+                        await asyncio.sleep(max(30, master_delay + random.randint(-master_jitter, master_jitter)))
                 
-                if data['master_use_custom_pesan'] and data['master_custom_pesan']:
-                    master_pesan_list = data['master_custom_pesan']
                 else:
-                    master_pesan_list = data['master_pesan_list']
-                
-                if master_pesan_list:
-                    master_pesan = random.choice(master_pesan_list) if data['use_random'] else master_pesan_list[0]
+                    account_name = account_ref
+                    if account_name in data['accounts']:
+                        account = data['accounts'][account_name]
+                        account_delay = account['custom_delay'] if account['custom_delay'] > 0 else data['master_delay']
+                        account_jitter = account.get('delay_jitter', 10)
+                        
+                        if account['use_custom_pesan'] and account['custom_pesan']:
+                            pesan_list = account['custom_pesan']
+                        else:
+                            pesan_list = data['master_pesan_list']
+                        
+                        if pesan_list:
+                            pesan = random.choice(pesan_list) if data['use_random'] else pesan_list[0]
+                            target_groups = account['target_groups'] if account['target_groups'] else data['groups']
+                            
+                            try:
+                                account_client = TelegramClient(StringSession(account['string_session']), API_ID, API_HASH)
+                                await account_client.start()
+                                
+                                for grup in target_groups:
+                                    try:
+                                        await account_client.send_message(grup, pesan)
+                                        print(f"[{account_name} SPAM] → {grup}")
+                                        await asyncio.sleep(1)
+                                    except Exception as e:
+                                        print(f"[ERROR {account_name}] {grup}: {e}")
+                                
+                                await account_client.disconnect()
+                            except Exception as e:
+                                print(f"[CONNECT ERROR {account_name}] {e}")
+                        
+                        await asyncio.sleep(max(30, account_delay + random.randint(-account_jitter, account_jitter)))
+            
+            await asyncio.sleep(5)
+            
+        except PersistentTimestampOutdatedError:
+            print("💀 PERSISTENT TIMESTAMP ERROR IN SPAM LOOP - RECONNECTING...")
+            await handle_telegram_error()
+            await asyncio.sleep(30)
+        except Exception as e:
+            print(f"💀 UNKNOWN ERROR IN SPAM LOOP: {e}")
+            await asyncio.sleep(30)
+
+# FORWARD LOOP DENGAN ERROR HANDLING
+async def forward_loop():
+    global forward_task
+    restart_counter = 0
+    error_count = 0
+    
+    await user.start()
+    while data['forward_running'] or any(data['individual_forward'].values()):
+        try:
+            # AUTO-RESTART SETIAP 1 JAM UNTUK FORWARD (LEBIH SERING KARENA RENTAN ERROR)
+            restart_counter += 1
+            if restart_counter >= 3600 or error_count >= 10:  # 1 jam atau 10 error
+                await restart_all_clients()
+                restart_counter = 0
+                error_count = 0
+            
+            accounts_to_forward = []
+            
+            if data['forward_running'] and data['master_account_active']:
+                accounts_to_forward.append('master')
+            
+            for account_name in data['active_accounts']:
+                if data['forward_running'] or data['individual_forward'].get(account_name, False):
+                    accounts_to_forward.append(account_name)
+            
+            if not accounts_to_forward or not data['forward_channels']:
+                await asyncio.sleep(10)
+                continue
+            
+            success_count = 0
+            total_attempts = 0
+            
+            for account_ref in accounts_to_forward:
+                if account_ref == 'master':
+                    master_delay = data['master_custom_delay'] if data['master_custom_delay'] > 0 else data['master_delay']
                     master_target = data['master_target_groups'] if data['master_target_groups'] else data['groups']
                     
-                    for grup in master_target:
+                    for channel in data['forward_channels']:
                         try:
-                            await user.send_message(grup, master_pesan)
-                            print(f"[AKUN-1 SPAM] → {grup}")
-                            await asyncio.sleep(1)
+                            async for message in user.iter_messages(channel, limit=2):  # REDUCE LIMIT UNTUK KURANGI LOAD
+                                for grup in master_target:
+                                    try:
+                                        await user.forward_messages(grup, message)
+                                        print(f"[AKUN-1 FORWARD] → {grup}")
+                                        success_count += 1
+                                        await asyncio.sleep(master_delay)
+                                    except Exception as e:
+                                        print(f"[FORWARD ERROR AKUN-1] {grup}: {e}")
+                                        error_count += 1
+                                total_attempts += 1
+                            await asyncio.sleep(10)
                         except Exception as e:
-                            print(f"[ERROR AKUN-1] {grup}: {e}")
-                    
-                    await asyncio.sleep(max(30, master_delay + random.randint(-master_jitter, master_jitter)))
-            
-            else:
-                account_name = account_ref
-                if account_name in data['accounts']:
-                    account = data['accounts'][account_name]
-                    account_delay = account['custom_delay'] if account['custom_delay'] > 0 else data['master_delay']
-                    account_jitter = account.get('delay_jitter', 10)
-                    
-                    if account['use_custom_pesan'] and account['custom_pesan']:
-                        pesan_list = account['custom_pesan']
-                    else:
-                        pesan_list = data['master_pesan_list']
-                    
-                    if pesan_list:
-                        pesan = random.choice(pesan_list) if data['use_random'] else pesan_list[0]
+                            print(f"[CHANNEL ERROR AKUN-1] {channel}: {e}")
+                            error_count += 1
+                
+                else:
+                    account_name = account_ref
+                    if account_name in data['accounts']:
+                        account = data['accounts'][account_name]
+                        account_delay = account['custom_delay'] if account['custom_delay'] > 0 else data['master_delay']
                         target_groups = account['target_groups'] if account['target_groups'] else data['groups']
                         
                         try:
                             account_client = TelegramClient(StringSession(account['string_session']), API_ID, API_HASH)
                             await account_client.start()
                             
-                            for grup in target_groups:
+                            for channel in data['forward_channels']:
                                 try:
-                                    await account_client.send_message(grup, pesan)
-                                    print(f"[{account_name} SPAM] → {grup}")
-                                    await asyncio.sleep(1)
+                                    async for message in account_client.iter_messages(channel, limit=2):  # REDUCE LIMIT
+                                        for grup in target_groups:
+                                            try:
+                                                await account_client.forward_messages(grup, message)
+                                                print(f"[{account_name} FORWARD] → {grup}")
+                                                success_count += 1
+                                                await asyncio.sleep(account_delay)
+                                            except Exception as e:
+                                                print(f"[FORWARD ERROR {account_name}] {grup}: {e}")
+                                                error_count += 1
+                                        total_attempts += 1
+                                    await asyncio.sleep(10)
                                 except Exception as e:
-                                    print(f"[ERROR {account_name}] {grup}: {e}")
+                                    print(f"[CHANNEL ERROR {account_name}] {channel}: {e}")
+                                    error_count += 1
                             
                             await account_client.disconnect()
                         except Exception as e:
                             print(f"[CONNECT ERROR {account_name}] {e}")
-                    
-                    await asyncio.sleep(max(30, account_delay + random.randint(-account_jitter, account_jitter)))
-        
-        await asyncio.sleep(5)
-
-# FORWARD LOOP
-async def forward_loop():
-    global forward_task  # FIX: ADD GLOBAL DECLARATION HERE TOO
-    await user.start()
-    while data['forward_running'] or any(data['individual_forward'].values()):
-        accounts_to_forward = []
-        
-        if data['forward_running'] and data['master_account_active']:
-            accounts_to_forward.append('master')
-        
-        for account_name in data['active_accounts']:
-            if data['forward_running'] or data['individual_forward'].get(account_name, False):
-                accounts_to_forward.append(account_name)
-        
-        if not accounts_to_forward or not data['forward_channels']:
-            await asyncio.sleep(10)
-            continue
-        
-        for account_ref in accounts_to_forward:
-            if account_ref == 'master':
-                master_delay = data['master_custom_delay'] if data['master_custom_delay'] > 0 else data['master_delay']
-                master_target = data['master_target_groups'] if data['master_target_groups'] else data['groups']
-                
-                for channel in data['forward_channels']:
-                    try:
-                        async for message in user.iter_messages(channel, limit=3):
-                            for grup in master_target:
-                                try:
-                                    await user.forward_messages(grup, message)
-                                    print(f"[AKUN-1 FORWARD] → {grup}")
-                                    await asyncio.sleep(master_delay)
-                                except Exception as e:
-                                    print(f"[FORWARD ERROR AKUN-1] {grup}: {e}")
-                        await asyncio.sleep(10)
-                    except Exception as e:
-                        print(f"[CHANNEL ERROR AKUN-1] {channel}: {e}")
+                            error_count += 1
             
+            # JIKA SUCCESS RATE RENDAH, TUNGGU LEBIH LAMA
+            if total_attempts > 0 and success_count / total_attempts < 0.5:
+                print(f"⚠️ LOW SUCCESS RATE: {success_count}/{total_attempts} - INCREASING DELAY")
+                await asyncio.sleep(60)
             else:
-                account_name = account_ref
-                if account_name in data['accounts']:
-                    account = data['accounts'][account_name]
-                    account_delay = account['custom_delay'] if account['custom_delay'] > 0 else data['master_delay']
-                    target_groups = account['target_groups'] if account['target_groups'] else data['groups']
-                    
-                    try:
-                        account_client = TelegramClient(StringSession(account['string_session']), API_ID, API_HASH)
-                        await account_client.start()
-                        
-                        for channel in data['forward_channels']:
-                            try:
-                                async for message in account_client.iter_messages(channel, limit=3):
-                                    for grup in target_groups:
-                                        try:
-                                            await account_client.forward_messages(grup, message)
-                                            print(f"[{account_name} FORWARD] → {grup}")
-                                            await asyncio.sleep(account_delay)
-                                        except Exception as e:
-                                            print(f"[FORWARD ERROR {account_name}] {grup}: {e}")
-                                await asyncio.sleep(10)
-                            except Exception as e:
-                                print(f"[CHANNEL ERROR {account_name}] {channel}: {e}")
-                        
-                        await account_client.disconnect()
-                    except Exception as e:
-                        print(f"[CONNECT ERROR {account_name}] {e}")
-        
-        await asyncio.sleep(data['master_delay'])
+                await asyncio.sleep(data['master_delay'])
+            
+        except PersistentTimestampOutdatedError:
+            print("💀 PERSISTENT TIMESTAMP ERROR IN FORWARD LOOP - RECONNECTING...")
+            await handle_telegram_error()
+            error_count += 1
+            await asyncio.sleep(30)
+        except Exception as e:
+            print(f"💀 UNKNOWN ERROR IN FORWARD LOOP: {e}")
+            error_count += 1
+            await asyncio.sleep(30)
 
-print("🚀 JINX BOT ULTIMATE FIXED STARTED!")
-print("📋 SEMUA BUG SUDAH DIFIX!")
+print("🚀 JINX BOT ULTIMATE FIXED WITH ERROR HANDLING STARTED!")
+print("📋 SEMUA BUG SUDAH DIFIX + ERROR HANDLING DITAMBAH!")
 bot.run_until_disconnected()
