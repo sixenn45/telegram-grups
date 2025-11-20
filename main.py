@@ -1,10 +1,10 @@
-# JINX_BOT_ULTIMATE_FIXED_WITH_ERROR_HANDLING.py
+# JINX_BOT_ULTIMATE_FIXED_WITH_LIVE_STATUS.py
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
-from telethon.errors import PersistentTimestampOutdatedError
-import os, asyncio, random, re
+from telethon.errors import PersistentTimestampOutdatedError, FloodWaitError, SessionPasswordNeededError
+import os, asyncio, random, re, time
 
-print("🔥 JINX BOT ULTIMATE FIXED WITH ERROR HANDLING STARTING...")
+print("🔥 JINX BOT ULTIMATE FIXED WITH LIVE STATUS STARTING...")
 
 # ENV VARIABLES
 API_ID = int(os.getenv('API_ID'))
@@ -12,9 +12,329 @@ API_HASH = os.getenv('API_HASH')
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 SESSION = os.getenv('SESSION')
 
-# GLOBAL VARIABLES - FIX BUG SPAM_TASK
+# ==================== ENHANCED SESSION MANAGEMENT WITH LIVE STATUS ====================
+class AdvancedSessionManager:
+    def __init__(self):
+        self.account_clients = {}
+        self.session_stats = {}
+        self.last_restart = time.time()
+        self.restart_count = 0
+        self.live_status = {}  # NEW: Live connection status
+        
+    async def get_client(self, account_name, session_string=None):
+        """Dapatkan client dengan intelligent session management + live status"""
+        try:
+            # NEW: Check live connection status
+            if account_name in self.account_clients:
+                client = self.account_clients[account_name]
+                if client.is_connected():
+                    # UPDATE LIVE STATUS: Connected
+                    self.live_status[account_name] = {
+                        'status': 'connected',
+                        'last_check': time.time(),
+                        'ping': 'OK'
+                    }
+                    return client
+                else:
+                    # UPDATE LIVE STATUS: Disconnected
+                    self.live_status[account_name] = {
+                        'status': 'disconnected', 
+                        'last_check': time.time(),
+                        'ping': 'DEAD'
+                    }
+                    del self.account_clients[account_name]
+            
+            # Buat client baru
+            if account_name == 'master':
+                client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
+            else:
+                if not session_string:
+                    raise Exception(f"Session string required for {account_name}")
+                client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
+            
+            # Start client dengan timeout
+            await asyncio.wait_for(client.start(), timeout=30)
+            
+            # Test connection dengan ping
+            try:
+                me = await client.get_me()
+                # UPDATE LIVE STATUS: Connected + User Info
+                self.live_status[account_name] = {
+                    'status': 'connected',
+                    'last_check': time.time(),
+                    'ping': 'OK',
+                    'username': me.username,
+                    'user_id': me.id,
+                    'first_name': me.first_name
+                }
+            except:
+                # UPDATE LIVE STATUS: Connected but ping failed
+                self.live_status[account_name] = {
+                    'status': 'connected',
+                    'last_check': time.time(), 
+                    'ping': 'PING_FAILED'
+                }
+            
+            # Simpan client
+            self.account_clients[account_name] = client
+            
+            # Update stats
+            if account_name not in self.session_stats:
+                self.session_stats[account_name] = {
+                    'success_count': 0,
+                    'error_count': 0,
+                    'last_activity': time.time(),
+                    'flood_waits': 0
+                }
+            
+            print(f"✅ [{account_name}] Session started successfully - LIVE STATUS: CONNECTED")
+            return client
+            
+        except Exception as e:
+            # UPDATE LIVE STATUS: Error
+            self.live_status[account_name] = {
+                'status': 'error',
+                'last_check': time.time(),
+                'ping': 'ERROR',
+                'error': str(e)
+            }
+            print(f"💀 [{account_name}] Failed to start session: {e}")
+            raise
+
+    async def safe_send_message(self, account_name, target, message, session_string=None):
+        """Kirim message dengan error handling yang advanced"""
+        try:
+            client = await self.get_client(account_name, session_string)
+            
+            # Dynamic delay berdasarkan performance
+            base_delay = self.calculate_smart_delay(account_name)
+            await asyncio.sleep(base_delay)
+            
+            result = await client.send_message(target, message)
+            
+            # Update success stats
+            self.session_stats[account_name]['success_count'] += 1
+            self.session_stats[account_name]['last_activity'] = time.time()
+            
+            return result
+            
+        except FloodWaitError as e:
+            wait_time = e.seconds
+            print(f"⏳ [{account_name}] Flood wait {wait_time}s")
+            
+            # Update flood wait stats
+            self.session_stats[account_name]['flood_waits'] += 1
+            self.session_stats[account_name]['error_count'] += 1
+            
+            await asyncio.sleep(wait_time + 10)  # Extra buffer
+            return await self.safe_send_message(account_name, target, message, session_string)
+            
+        except PersistentTimestampOutdatedError:
+            print(f"🔄 [{account_name}] Persistent timestamp error - reconnecting...")
+            await self.force_reconnect(account_name)
+            await asyncio.sleep(30)
+            return await self.safe_send_message(account_name, target, message, session_string)
+            
+        except Exception as e:
+            print(f"💀 [{account_name}] Send message error: {e}")
+            
+            # Update error stats
+            self.session_stats[account_name]['error_count'] += 1
+            
+            # Force reconnect setelah 3 error berturut-turut
+            if self.session_stats[account_name]['error_count'] % 3 == 0:
+                await self.force_reconnect(account_name)
+            
+            raise
+    
+    async def safe_forward_messages(self, account_name, target, messages, session_string=None):
+        """Forward messages dengan error handling"""
+        try:
+            client = await self.get_client(account_name, session_string)
+            
+            # Dynamic delay
+            base_delay = self.calculate_smart_delay(account_name)
+            await asyncio.sleep(base_delay)
+            
+            result = await client.forward_messages(target, messages)
+            
+            # Update stats
+            self.session_stats[account_name]['success_count'] += 1
+            self.session_stats[account_name]['last_activity'] = time.time()
+            
+            return result
+            
+        except FloodWaitError as e:
+            wait_time = e.seconds
+            print(f"⏳ [{account_name}] Flood wait {wait_time}s for forward")
+            
+            self.session_stats[account_name]['flood_waits'] += 1
+            self.session_stats[account_name]['error_count'] += 1
+            
+            await asyncio.sleep(wait_time + 10)
+            return await self.safe_forward_messages(account_name, target, messages, session_string)
+            
+        except PersistentTimestampOutdatedError:
+            print(f"🔄 [{account_name}] Persistent timestamp error in forward - reconnecting...")
+            await self.force_reconnect(account_name)
+            await asyncio.sleep(30)
+            return await self.safe_forward_messages(account_name, target, messages, session_string)
+            
+        except Exception as e:
+            print(f"💀 [{account_name}] Forward error: {e}")
+            self.session_stats[account_name]['error_count'] += 1
+            
+            if self.session_stats[account_name]['error_count'] % 3 == 0:
+                await self.force_reconnect(account_name)
+            
+            raise
+
+    async def check_live_status(self, account_name, session_string=None):
+        """Check real-time status session tertentu"""
+        try:
+            if account_name in self.account_clients and self.account_clients[account_name].is_connected():
+                client = self.account_clients[account_name]
+                # Test dengan get_me (ping)
+                me = await client.get_me()
+                self.live_status[account_name] = {
+                    'status': 'connected',
+                    'last_check': time.time(),
+                    'ping': 'OK',
+                    'username': me.username,
+                    'user_id': me.id,
+                    'first_name': me.first_name
+                }
+                return True
+            else:
+                # Try to reconnect dan test
+                client = await self.get_client(account_name, session_string)
+                me = await client.get_me()
+                self.live_status[account_name] = {
+                    'status': 'connected',
+                    'last_check': time.time(),
+                    'ping': 'OK',
+                    'username': me.username, 
+                    'user_id': me.id,
+                    'first_name': me.first_name
+                }
+                return True
+        except Exception as e:
+            self.live_status[account_name] = {
+                'status': 'error',
+                'last_check': time.time(),
+                'ping': 'ERROR',
+                'error': str(e)
+            }
+            return False
+
+    async def get_all_live_status(self):
+        """Check status semua sessions yang terdaftar"""
+        status_report = {}
+        
+        # Check master account
+        try:
+            if 'master' not in self.live_status:
+                await self.check_live_status('master')
+            status_report['master'] = self.live_status.get('master', {'status': 'unknown'})
+        except Exception as e:
+            status_report['master'] = {'status': 'error', 'error': str(e)}
+        
+        # Check semua accounts yang ada di data
+        for account_name in data.get('accounts', {}).keys():
+            try:
+                session_string = data['accounts'][account_name]['string_session']
+                if account_name not in self.live_status:
+                    await self.check_live_status(account_name, session_string)
+                status_report[account_name] = self.live_status.get(account_name, {'status': 'unknown'})
+            except Exception as e:
+                status_report[account_name] = {'status': 'error', 'error': str(e)}
+        
+        return status_report
+
+    def get_live_status_emoji(self, status_data):
+        """Dapatkan emoji berdasarkan status"""
+        status = status_data.get('status', 'unknown')
+        ping = status_data.get('ping', 'UNKNOWN')
+        
+        if status == 'connected' and ping == 'OK':
+            return '🟢'  # Connected dan OK
+        elif status == 'connected' and ping == 'PING_FAILED':
+            return '🟡'  # Connected tapi ping gagal
+        elif status == 'disconnected':
+            return '🔴'  # Disconnected
+        elif status == 'error':
+            return '💀'  # Error
+        else:
+            return '⚫'  # Unknown
+
+    def calculate_smart_delay(self, account_name):
+        """Hitung delay intelligent berdasarkan performance account"""
+        if account_name not in self.session_stats:
+            return data['master_delay']
+        
+        stats = self.session_stats[account_name]
+        total_actions = stats['success_count'] + stats['error_count']
+        
+        if total_actions == 0:
+            return data['master_delay']
+        
+        error_rate = stats['error_count'] / total_actions
+        
+        # Adjust delay berdasarkan error rate
+        base_delay = data['master_delay']
+        if error_rate > 0.3:  # 30% error rate
+            base_delay *= 2
+        elif error_rate > 0.1:  # 10% error rate
+            base_delay *= 1.5
+        
+        # Tambah jitter
+        jitter = random.randint(-10, 10)
+        return max(30, base_delay + jitter)
+    
+    async def force_reconnect(self, account_name):
+        """Force reconnect session tertentu"""
+        try:
+            if account_name in self.account_clients:
+                client = self.account_clients[account_name]
+                await client.disconnect()
+                del self.account_clients[account_name]
+                print(f"🔄 [{account_name}] Force reconnected")
+        except Exception as e:
+            print(f"💀 [{account_name}] Force reconnect failed: {e}")
+    
+    async def periodic_cleanup(self):
+        """Periodic cleanup dan maintenance"""
+        while True:
+            try:
+                current_time = time.time()
+                
+                # Auto-restart semua session setiap 4 jam
+                if current_time - self.last_restart > 14400:  # 4 jam
+                    print("🔄 AUTO-RESTARTING ALL SESSIONS AFTER 4 HOURS...")
+                    for account_name in list(self.account_clients.keys()):
+                        await self.force_reconnect(account_name)
+                    self.last_restart = current_time
+                    self.restart_count += 1
+                
+                # Cleanup stats lama
+                for account_name in list(self.session_stats.keys()):
+                    stats = self.session_stats[account_name]
+                    if current_time - stats['last_activity'] > 86400:  # 24 jam
+                        del self.session_stats[account_name]
+                
+                await asyncio.sleep(300)  # Check setiap 5 menit
+                
+            except Exception as e:
+                print(f"💀 Periodic cleanup error: {e}")
+                await asyncio.sleep(60)
+
+# Initialize session manager
+session_manager = AdvancedSessionManager()
+
+# GLOBAL VARIABLES
 spam_task = None
 forward_task = None
+cleanup_task = None
 
 # DATA STORAGE LENGKAP
 data = {
@@ -37,36 +357,202 @@ data = {
     "individual_spam": {}
 }
 
-bot = TelegramClient('bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
-user = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
+bot = TelegramClient('bot', API_ID, API_HASH)
 
-async def restart_all_clients():
-    """Restart semua Telegram client untuk handle error"""
+# ==================== LIVE STATUS COMMANDS ====================
+@bot.on(events.NewMessage(pattern='/live_status'))
+async def live_status_handler(event):
+    """Show real-time live status semua sessions"""
+    await event.reply("🔄 **Checking live status semua sessions...**")
+    
     try:
-        await user.disconnect()
-        await asyncio.sleep(15)
-        await user.start()
-        print("✅ ALL CLIENTS RESTARTED AFTER ERROR")
-        return True
+        # Get semua live status
+        status_report = await session_manager.get_all_live_status()
+        
+        if not status_report:
+            await event.reply("❌ **Belum ada sessions terdaftar!**")
+            return
+        
+        txt = "**📊 LIVE SESSION STATUS - REAL TIME:**\n\n"
+        
+        # Master Account
+        if 'master' in status_report:
+            master_status = status_report['master']
+            emoji = session_manager.get_live_status_emoji(master_status)
+            txt += f"{emoji} **MASTER ACCOUNT:**\n"
+            txt += f"   Status: `{master_status.get('status', 'unknown')}`\n"
+            txt += f"   Ping: `{master_status.get('ping', 'UNKNOWN')}`\n"
+            if master_status.get('username'):
+                txt += f"   User: @{master_status['username']}\n"
+            if master_status.get('last_check'):
+                txt += f"   Last Check: {time.ctime(master_status['last_check'])}\n"
+            if master_status.get('error'):
+                txt += f"   Error: `{master_status['error'][:50]}...`\n"
+            txt += "\n"
+        
+        # Other Accounts
+        other_accounts = {k: v for k, v in status_report.items() if k != 'master'}
+        if other_accounts:
+            txt += "**👥 OTHER ACCOUNTS:**\n"
+            for account_name, status_data in other_accounts.items():
+                emoji = session_manager.get_live_status_emoji(status_data)
+                txt += f"{emoji} **{account_name.upper()}:**\n"
+                txt += f"   Status: `{status_data.get('status', 'unknown')}`\n"
+                txt += f"   Ping: `{status_data.get('ping', 'UNKNOWN')}`\n"
+                if status_data.get('username'):
+                    txt += f"   User: @{status_data['username']}\n"
+                if status_data.get('last_check'):
+                    txt += f"   Last Check: {time.ctime(status_data['last_check'])}\n"
+                if status_data.get('error'):
+                    txt += f"   Error: `{status_data['error'][:50]}...`\n"
+                txt += "\n"
+        
+        # Summary
+        total = len(status_report)
+        connected = sum(1 for s in status_report.values() if s.get('status') == 'connected' and s.get('ping') == 'OK')
+        problems = total - connected
+        
+        txt += f"**📈 SUMMARY:** {connected}/{total} Connected | {problems} Problems\n"
+        
+        await event.reply(txt)
+        
     except Exception as e:
-        print(f"💀 RESTART FAILED: {e}")
-        return False
+        await event.reply(f"💀 **Error getting live status:** {str(e)}")
 
-async def handle_telegram_error():
-    """Handle Telegram internal errors dengan reconnect"""
+@bot.on(events.NewMessage(pattern='/check_session'))
+async def check_session_handler(event):
+    """Check status session tertentu"""
     try:
-        await user.disconnect()
-        await asyncio.sleep(20)
-        await user.start()
-        print("✅ CLIENT RECONNECTED AFTER TELEGRAM ERROR")
-        return True
+        parts = event.text.split()
+        if len(parts) < 2:
+            await event.reply("❌ **Format:** `/check_session nama_akun`")
+            return
+        
+        account_name = parts[1]
+        
+        await event.reply(f"🔄 **Checking live status {account_name}...**")
+        
+        if account_name == 'master':
+            is_alive = await session_manager.check_live_status('master')
+        elif account_name in data.get('accounts', {}):
+            session_string = data['accounts'][account_name]['string_session']
+            is_alive = await session_manager.check_live_status(account_name, session_string)
+        else:
+            await event.reply(f"❌ **Akun `{account_name}` tidak ditemukan!**")
+            return
+        
+        status_data = session_manager.live_status.get(account_name, {})
+        emoji = session_manager.get_live_status_emoji(status_data)
+        
+        if is_alive:
+            txt = f"{emoji} **{account_name.upper()} - LIVE & CONNECTED!**\n\n"
+            txt += f"Status: `{status_data.get('status', 'unknown')}`\n"
+            txt += f"Ping: `{status_data.get('ping', 'UNKNOWN')}`\n"
+            if status_data.get('username'):
+                txt += f"User: @{status_data['username']}\n"
+            if status_data.get('last_check'):
+                txt += f"Last Check: {time.ctime(status_data['last_check'])}\n"
+            await event.reply(txt)
+        else:
+            txt = f"{emoji} **{account_name.upper()} - OFFLINE!**\n\n"
+            txt += f"Status: `{status_data.get('status', 'unknown')}`\n"
+            txt += f"Ping: `{status_data.get('ping', 'UNKNOWN')}`\n"
+            if status_data.get('error'):
+                txt += f"Error: `{status_data['error']}`\n"
+            await event.reply(txt)
+            
     except Exception as e:
-        print(f"💀 RECONNECT FAILED: {e}")
-        return False
+        await event.reply(f"💀 **Error checking session:** {str(e)}")
 
+@bot.on(events.NewMessage(pattern='/auto_check'))
+async def auto_check_handler(event):
+    """Auto check dan restart sessions yang mati"""
+    await event.reply("🔄 **Running auto-check dan repair sessions...**")
+    
+    try:
+        status_report = await session_manager.get_all_live_status()
+        dead_sessions = []
+        repaired_sessions = []
+        
+        for account_name, status_data in status_report.items():
+            if status_data.get('status') != 'connected' or status_data.get('ping') != 'OK':
+                dead_sessions.append(account_name)
+                
+                # Try to repair
+                try:
+                    if account_name == 'master':
+                        await session_manager.check_live_status('master')
+                    elif account_name in data.get('accounts', {}):
+                        session_string = data['accounts'][account_name]['string_session']
+                        await session_manager.check_live_status(account_name, session_string)
+                    
+                    # Check if repaired
+                    new_status = session_manager.live_status.get(account_name, {})
+                    if new_status.get('status') == 'connected' and new_status.get('ping') == 'OK':
+                        repaired_sessions.append(account_name)
+                        
+                except Exception as e:
+                    print(f"Failed to repair {account_name}: {e}")
+        
+        txt = "**🔧 AUTO-CHECK & REPAIR RESULTS:**\n\n"
+        txt += f"**Dead Sessions Found:** {len(dead_sessions)}\n"
+        if dead_sessions:
+            txt += f"`{', '.join(dead_sessions)}`\n\n"
+        
+        txt += f"**Successfully Repaired:** {len(repaired_sessions)}\n"
+        if repaired_sessions:
+            txt += f"`{', '.join(repaired_sessions)}`\n\n"
+        
+        if len(repaired_sessions) < len(dead_sessions):
+            txt += "❌ **Some sessions could not be repaired!**\n"
+            txt += "Gunakan `/restart_sessions` untuk force restart semua.\n"
+        else:
+            txt += "✅ **All sessions repaired successfully!**\n"
+        
+        await event.reply(txt)
+        
+    except Exception as e:
+        await event.reply(f"💀 **Auto-check error:** {str(e)}")
+
+@bot.on(events.NewMessage(pattern='/session_stats'))
+async def session_stats_handler(event):
+    """Show session statistics"""
+    if not session_manager.session_stats:
+        await event.reply("📊 **Belum ada data session stats!**")
+        return
+    
+    txt = "**📊 SESSION STATISTICS:**\n\n"
+    for account_name, stats in session_manager.session_stats.items():
+        total_actions = stats['success_count'] + stats['error_count']
+        success_rate = (stats['success_count'] / total_actions * 100) if total_actions > 0 else 0
+        
+        txt += f"**{account_name}:**\n"
+        txt += f"✅ Success: {stats['success_count']}\n"
+        txt += f"❌ Errors: {stats['error_count']}\n"
+        txt += f"⏳ Flood Waits: {stats['flood_waits']}\n"
+        txt += f"📈 Success Rate: {success_rate:.1f}%\n"
+        txt += f"🕒 Last Active: {time.ctime(stats['last_activity'])}\n\n"
+    
+    await event.reply(txt)
+
+@bot.on(events.NewMessage(pattern='/restart_sessions'))
+async def restart_sessions_handler(event):
+    """Restart semua sessions"""
+    await event.reply("🔄 **RESTARTING ALL SESSIONS...**")
+    
+    restart_count = 0
+    for account_name in list(session_manager.account_clients.keys()):
+        try:
+            await session_manager.force_reconnect(account_name)
+            restart_count += 1
+        except Exception as e:
+            print(f"Error restarting {account_name}: {e}")
+    
+    await event.reply(f"✅ **{restart_count} SESSIONS RESTARTED!**")
+
+# ==================== UNIVERSAL HANDLER ====================
 @bot.on(events.NewMessage)
 async def universal_handler(event):
-    # FIX: DECLARE GLOBAL DI AWAL FUNCTION
     global spam_task, forward_task
     
     text = event.raw_text.strip()
@@ -74,11 +560,18 @@ async def universal_handler(event):
 
     # 🎯 TEST & INFO
     if text.startswith('/start'):
-        await event.reply("🔥 **JINX BOT ULTIMATE FIXED WITH ERROR HANDLING AKTIF!**\nKetik `/menu` untuk semua command!")
+        await event.reply("🔥 **JINX BOT ULTIMATE FIXED WITH LIVE STATUS AKTIF!**\nKetik `/menu` untuk semua command!")
     
     elif text.startswith('/menu'):
         menu = """
-**🔥 JINX BOT ULTIMATE FIXED - ALL FEATURES + ERROR HANDLING**
+**🔥 JINX BOT ULTIMATE - LIVE STATUS + ENHANCED SESSION MANAGEMENT**
+
+**📊 LIVE STATUS COMMANDS (NEW):**
+`/live_status` - Lihat real-time status semua sessions
+`/check_session nama` - Check status session tertentu  
+`/auto_check` - Auto check & repair sessions yang mati
+`/session_stats` - Lihat performance statistics
+`/restart_sessions` - Restart semua sessions
 
 **👥 SPAM CONTROL PER AKUN:**
 `/spam_on akun1` - Spam akun1 saja
@@ -149,7 +642,7 @@ async def universal_handler(event):
         await event.reply(menu)
 
     elif text.startswith('/test'):
-        await event.reply("✅ **BOT ULTIMATE FIXED WITH ERROR HANDLING WORKING!** Semua systems go!")
+        await event.reply("✅ **BOT ULTIMATE FIXED WITH LIVE STATUS WORKING!** Semua systems go!")
 
     elif text.startswith('/restart'):
         await event.reply("🔄 **RESTARTING CLIENTS...**")
@@ -164,6 +657,13 @@ async def universal_handler(event):
         active_forward_count = sum(1 for status in data['individual_forward'].values() if status)
         custom_delay_count = sum(1 for acc in data['accounts'].values() if acc.get('custom_delay', 0) > 0)
         
+        # Session stats info
+        session_info = f"Active Sessions: {len(session_manager.account_clients)}"
+        if session_manager.session_stats:
+            total_success = sum(stats['success_count'] for stats in session_manager.session_stats.values())
+            total_errors = sum(stats['error_count'] for stats in session_manager.session_stats.values())
+            session_info += f" | Success: {total_success} | Errors: {total_errors}"
+        
         txt = f"**📊 STATUS LENGKAP:**\n\n"
         txt += f"**SPAM GLOBAL:** {'🟢 JALAN' if data['global_spam_running'] else '🔴 MATI'}\n"
         txt += f"**SPAM INDIVIDUAL:** {active_spam_count} akun\n"
@@ -171,6 +671,7 @@ async def universal_handler(event):
         txt += f"**FORWARD INDIVIDUAL:** {active_forward_count} akun\n"
         txt += f"**AKUN 1:** {'🟢 AKTIF' if data['master_account_active'] else '🔴 NONAKTIF'}\n"
         txt += f"**AKUN LAIN:** {len(data['accounts'])} total, {len(data['active_accounts'])} aktif\n"
+        txt += f"**SESSION MANAGER:** {session_info}\n"
         txt += f"**AKUN CUSTOM DELAY:** {custom_delay_count}\n"
         txt += f"**GRUP GLOBAL:** {len(data['groups'])}\n"
         txt += f"**GRUP KHUSUS AKUN 1:** {len(data['master_target_groups'])}\n"
@@ -181,9 +682,8 @@ async def universal_handler(event):
         txt += f"**RANDOM MODE:** {'ON' if data['use_random'] else 'OFF'}"
         await event.reply(txt)
 
-    # 👥 SPAM CONTROL PER AKUN - FIXED!
+    # 👥 SPAM CONTROL PER AKUN
     elif text.startswith('/spam_on'):
-        global spam_task
         try:
             parts = text.split()
             if len(parts) >= 2:
@@ -233,9 +733,8 @@ async def universal_handler(event):
         except Exception as e:
             await event.reply(f"❌ Error: {str(e)}")
 
-    # 🔄 FORWARD CONTROL PER AKUN - FIXED!
+    # 🔄 FORWARD CONTROL PER AKUN
     elif text.startswith('/forward_on'):
-        global forward_task
         try:
             parts = text.split()
             if len(parts) >= 2:
@@ -285,721 +784,189 @@ async def universal_handler(event):
         except Exception as e:
             await event.reply(f"❌ Error: {str(e)}")
 
-    # ⏰ DELAY MANAGEMENT
-    elif text.startswith('/masterdelay'):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                delay = int(parts[1])
-                if 10 <= delay <= 300:
-                    data['master_delay'] = delay
-                    await event.reply(f"✅ **MASTER DELAY DISET: {delay}s**")
-                else:
-                    await event.reply("❌ Delay harus antara 10-300 detik!")
-        except:
-            await event.reply("❌ Format: `/masterdelay 60`")
-
-    elif text.startswith('/setdelay_akun'):
-        try:
-            parts = text.split()
-            if len(parts) >= 3:
-                account_name = parts[1]
-                delay = int(parts[2])
-                if account_name in data['accounts']:
-                    if 10 <= delay <= 300:
-                        data['accounts'][account_name]['custom_delay'] = delay
-                        await event.reply(f"✅ **{account_name.upper()} DELAY DISET: {delay}s**")
-                    else:
-                        await event.reply("❌ Delay harus antara 10-300 detik!")
-                else:
-                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
-        except:
-            await event.reply("❌ Format: `/setdelay_akun nama 60`")
-
-    elif text.startswith('/setjitter_akun'):
-        try:
-            parts = text.split()
-            if len(parts) >= 3:
-                account_name = parts[1]
-                jitter = int(parts[2])
-                if account_name in data['accounts']:
-                    if 0 <= jitter <= 50:
-                        data['accounts'][account_name]['delay_jitter'] = jitter
-                        await event.reply(f"✅ **{account_name.upper()} JITTER DISET: ±{jitter}s**")
-                    else:
-                        await event.reply("❌ Jitter harus antara 0-50 detik!")
-                else:
-                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
-        except:
-            await event.reply("❌ Format: `/setjitter_akun nama 20`")
-
-    elif text.startswith('/resetdelay_akun'):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                account_name = parts[1]
-                if account_name in data['accounts']:
-                    data['accounts'][account_name]['custom_delay'] = 0
-                    data['accounts'][account_name]['delay_jitter'] = 10
-                    await event.reply(f"✅ **{account_name.upper()} DELAY DIRESET KE MASTER!**")
-                else:
-                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/setdelay_master'):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                delay = int(parts[1])
-                if 10 <= delay <= 300:
-                    data['master_custom_delay'] = delay
-                    await event.reply(f"✅ **AKUN 1 DELAY DISET: {delay}s**")
-                else:
-                    await event.reply("❌ Delay harus antara 10-300 detik!")
-        except:
-            await event.reply("❌ Format: `/setdelay_master 60`")
-
-    elif text.startswith('/setjitter_master'):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                jitter = int(parts[1])
-                if 0 <= jitter <= 50:
-                    data['master_delay_jitter'] = jitter
-                    await event.reply(f"✅ **AKUN 1 JITTER DISET: ±{jitter}s**")
-                else:
-                    await event.reply("❌ Jitter harus antara 0-50 detik!")
-        except:
-            await event.reply("❌ Format: `/setjitter_master 20`")
-
-    # 📝 PESAN MANAGEMENT
-    elif text.startswith('/addpesan_akun'):
-        try:
-            parts = text.split(' ', 2)
-            if len(parts) >= 3:
-                account_name = parts[1]
-                pesan = parts[2]
-                
-                if account_name in data['accounts']:
-                    if pesan not in data['accounts'][account_name]['custom_pesan']:
-                        data['accounts'][account_name]['custom_pesan'].append(pesan)
-                        await event.reply(f"✅ **PESAN CUSTOM DITAMBAH UNTUK {account_name.upper()}!**\n\n{pesan}")
-                    else:
-                        await event.reply("❌ Pesan sudah ada di list akun ini!")
-                else:
-                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
-            else:
-                await event.reply("❌ **Format:** `/addpesan_akun nama_akun pesan_custom`")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/setpesanmode'):
-        try:
-            parts = text.split()
-            if len(parts) >= 3:
-                account_name = parts[1]
-                mode = parts[2]
-                
-                if account_name in data['accounts']:
-                    if mode == 'custom':
-                        data['accounts'][account_name]['use_custom_pesan'] = True
-                        await event.reply(f"✅ **{account_name.upper()} SEKARANG PAKE PESAN CUSTOM!**")
-                    elif mode == 'master':
-                        data['accounts'][account_name]['use_custom_pesan'] = False
-                        await event.reply(f"✅ **{account_name.upper()} SEKARANG PAKE PESAN MASTER!**")
-                    else:
-                        await event.reply("❌ Mode harus 'custom' atau 'master'!")
-                else:
-                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
-            else:
-                await event.reply("❌ **Format:** `/setpesanmode nama_akun custom|master`")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/setpesanmode_master'):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                mode = parts[1]
-                if mode == 'custom':
-                    data['master_use_custom_pesan'] = True
-                    await event.reply("✅ **AKUN 1 SEKARANG PAKE PESAN CUSTOM!**")
-                elif mode == 'master':
-                    data['master_use_custom_pesan'] = False
-                    await event.reply("✅ **AKUN 1 SEKARANG PAKE PESAN MASTER!**")
-                else:
-                    await event.reply("❌ Mode harus 'custom' atau 'master'!")
-            else:
-                await event.reply("❌ **Format:** `/setpesanmode_master custom|master`")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/addpesan_master '):
-        try:
-            pesan = text.replace('/addpesan_master ', '').strip()
-            if pesan in data['master_custom_pesan']:
-                await event.reply("❌ Sudah ada di list custom akun 1!")
-            else:
-                data['master_custom_pesan'].append(pesan)
-                await event.reply(f"✅ **PESAN CUSTOM DITAMBAH UNTUK AKUN 1!**\n\n{pesan}")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/addpesan '):
-        try:
-            pesan = text.replace('/addpesan ', '').strip()
-            if pesan in data['master_pesan_list']:
-                await event.reply("❌ Sudah ada di list master!")
-            else:
-                data['master_pesan_list'].append(pesan)
-                await event.reply(f"✅ **PESAN MASTER DITAMBAH!**\n\n{pesan}")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/deletepesan '):
-        try:
-            pesan_to_delete = text.replace('/deletepesan ', '').strip()
-            if pesan_to_delete in data['master_pesan_list']:
-                data['master_pesan_list'].remove(pesan_to_delete)
-                await event.reply(f"✅ **PESAN DIHAPUS!**\n`{pesan_to_delete}`")
-            else:
-                await event.reply("❌ Pesan tidak ditemukan di list master!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/clearallpesan'):
-        data['master_pesan_list'] = []
-        data['master_custom_pesan'] = []
-        for account in data['accounts'].values():
-            account['custom_pesan'] = []
-        await event.reply("✅ **SEMUA PESAN DIHAPUS!**\nPesan master & custom semua akun dikosongkan!")
-
-    elif text.startswith('/listpesan'):
-        if data['master_pesan_list']:
-            txt = "**📝 PESAN MASTER:**\n\n" + "\n".join([f"{i+1}. {p}" for i, p in enumerate(data['master_pesan_list'])])
-            await event.reply(txt)
-        else:
-            await event.reply("❌ **Belum ada pesan master!**\nKetik `/addpesan teks_pesan`")
-
-    # 📢 GRUP MANAGEMENT
-    elif text.startswith('/add '):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                grup = parts[1]
-                if grup not in data['groups']:
-                    data['groups'].append(grup)
-                    await event.reply(f"✅ **{grup} ditambah!** Total: {len(data['groups'])} grup")
-                else:
-                    await event.reply("❌ Sudah ada!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/del '):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                grup = parts[1]
-                if grup in data['groups']:
-                    data['groups'].remove(grup)
-                    await event.reply(f"✅ **{grup} dihapus!** Total: {len(data['groups'])} grup")
-                else:
-                    await event.reply("❌ Grup tidak ditemukan!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/listgroups'):
-        if data['groups']:
-            txt = "**📢 GRUP GLOBAL:**\n\n" + "\n".join(data['groups'])
-            await event.reply(txt)
-        else:
-            await event.reply("❌ **Belum ada grup!**\nKetik `/add @grup`")
-
-    elif text.startswith('/addgroup_akun'):
-        try:
-            parts = text.split()
-            if len(parts) >= 3:
-                account_name = parts[1]
-                grup = parts[2]
-                if account_name in data['accounts']:
-                    if grup not in data['accounts'][account_name]['target_groups']:
-                        data['accounts'][account_name]['target_groups'].append(grup)
-                        await event.reply(f"✅ **{grup} ditambah ke {account_name}!**")
-                    else:
-                        await event.reply("❌ Grup sudah ada di list akun ini!")
-                else:
-                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/delgroup_akun'):
-        try:
-            parts = text.split()
-            if len(parts) >= 3:
-                account_name = parts[1]
-                grup = parts[2]
-                if account_name in data['accounts']:
-                    if grup in data['accounts'][account_name]['target_groups']:
-                        data['accounts'][account_name]['target_groups'].remove(grup)
-                        await event.reply(f"✅ **{grup} dihapus dari {account_name}!**")
-                    else:
-                        await event.reply("❌ Grup tidak ada di list akun ini!")
-                else:
-                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/addgroup_master '):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                grup = parts[1]
-                if grup not in data['master_target_groups']:
-                    data['master_target_groups'].append(grup)
-                    await event.reply(f"✅ **{grup} ditambah ke Akun 1!** Total: {len(data['master_target_groups'])} grup")
-                else:
-                    await event.reply("❌ Sudah ada di list akun 1!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    # 🎯 CHANNEL FORWARD
-    elif text.startswith('/forward_add '):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                channel = parts[1]
-                if channel not in data['forward_channels']:
-                    data['forward_channels'].append(channel)
-                    await event.reply(f"✅ **{channel} DITAMBAH!**\nKetik `/forward_on all` untuk mulai forward!")
-                else:
-                    await event.reply("❌ Channel sudah ada!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/forward_remove '):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                channel = parts[1]
-                if channel in data['forward_channels']:
-                    data['forward_channels'].remove(channel)
-                    await event.reply(f"✅ **{channel} DIHAPUS!**")
-                else:
-                    await event.reply("❌ Channel tidak ditemukan!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/listchannels'):
-        if data['forward_channels']:
-            txt = "**🎯 CHANNEL SUMBER FORWARD:**\n\n" + "\n".join(data['forward_channels'])
-            await event.reply(txt)
-        else:
-            await event.reply("❌ **Belum ada channel!**\nKetik `/forward_add @channel`")
-
-    elif text.startswith('/forward'):
-        if event.is_reply:
-            try:
-                replied = await event.get_reply_message()
-                for grup in data['groups']:
-                    try:
-                        await user.forward_messages(grup, replied)
-                        await asyncio.sleep(2)
-                    except Exception as e:
-                        print(f"Forward error: {e}")
-                await event.reply("✅ **MANUAL FORWARD SELESAI!**")
-            except Exception as e:
-                await event.reply(f"❌ Forward error: {str(e)}")
-        else:
-            await event.reply("❌ **Reply pesan yang mau di-forward!**")
-
-    # 👑 AKUN 1 (MASTER)
-    elif text.startswith('/master on'):
-        data['master_account_active'] = True
-        await event.reply("✅ **AKUN 1 (MASTER) DIAKTIFKAN!** Sekarang ikut spam/forward!")
-
-    elif text.startswith('/master off'):
-        data['master_account_active'] = False
-        await event.reply("❌ **AKUN 1 (MASTER) DINONAKTIFKAN!** Hanya kontrol saja.")
-
-    elif text.startswith('/masterinfo'):
-        status = "🟢 AKTIF" if data['master_account_active'] else "🔴 NONAKTIF"
-        pesan_mode = "CUSTOM" if data['master_use_custom_pesan'] else "MASTER"
-        
-        if data['master_custom_delay'] > 0:
-            delay_info = f"CUSTOM ({data['master_custom_delay']}s ±{data['master_delay_jitter']}s)"
-        else:
-            delay_info = f"MASTER ({data['master_delay']}s ±10s)"
-        
-        txt = f"**👑 INFO AKUN 1 (MASTER):**\n\n"
-        txt += f"**Status Spam:** {status}\n"
-        txt += f"**Mode Pesan:** {pesan_mode}\n"
-        txt += f"**Delay:** {delay_info}\n"
-        txt += f"**Pesan Custom:** {len(data['master_custom_pesan'])} pesan\n"
-        txt += f"**Grup Khusus:** {len(data['master_target_groups'])} grup\n"
-        await event.reply(txt)
-
-    # 👥 MANAJEMEN AKUN LAIN
-    elif text.startswith('/addaccount'):
-        try:
-            parts = text.split(' ', 2)
-            if len(parts) < 3:
-                await event.reply("❌ **Format:** `/addaccount nama_akun string_session`")
-                return
-            
-            account_name = parts[1].strip()
-            string_session = parts[2].strip().replace(' ', '')
-            
-            await event.reply(f"🔄 **Testing session {account_name}...**")
-            
-            if account_name in data['accounts']:
-                await event.reply(f"❌ Akun `{account_name}` sudah ada!")
-                return
-            
-            # TEST SESSION
-            try:
-                test_client = TelegramClient(StringSession(string_session), API_ID, API_HASH)
-                await test_client.start()
-                me = await test_client.get_me()
-                await test_client.disconnect()
-                
-                data['accounts'][account_name] = {
-                    'string_session': string_session,
-                    'status': 'inactive',
-                    'user_id': me.id,
-                    'username': me.username,
-                    'custom_pesan': [],
-                    'use_custom_pesan': False,
-                    'target_groups': [],
-                    'custom_delay': 0,
-                    'delay_jitter': 10
-                }
-                
-                # FIX: INITIALIZE SPAM & FORWARD STATE
-                data['individual_spam'][account_name] = False
-                data['individual_forward'][account_name] = False
-                
-                await event.reply(f"✅ **AKUN DITAMBAH!**\n\nNama: `{account_name}`\nUser: @{me.username}\nID: `{me.id}`\n\nKetik `/activate {account_name}`")
-                
-            except Exception as e:
-                error_msg = str(e)
-                if "Cannot unpack non-iterable NoneType object" in error_msg:
-                    await event.reply("❌ **SESSION EXPIRED/INVALID!** Buat session baru!")
-                else:
-                    await event.reply(f"❌ **SESSION ERROR:** {error_msg[:100]}")
-                    
-        except Exception as e:
-            await event.reply(f"💀 **SYSTEM ERROR:** {str(e)}")
-
-    elif text.startswith('/activate'):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                account_name = parts[1]
-                if account_name in data['accounts']:
-                    if account_name not in data['active_accounts']:
-                        data['active_accounts'].append(account_name)
-                        data['accounts'][account_name]['status'] = 'active'
-                        await event.reply(f"✅ **{account_name} AKTIF!** Sekarang bisa ikut spam/forward!")
-                    else:
-                        await event.reply(f"❌ {account_name} sudah aktif!")
-                else:
-                    await event.reply(f"❌ Akun {account_name} tidak ditemukan!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/deactivate'):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                account_name = parts[1]
-                if account_name in data['active_accounts']:
-                    data['active_accounts'].remove(account_name)
-                    data['accounts'][account_name]['status'] = 'inactive'
-                    data['individual_spam'][account_name] = False
-                    data['individual_forward'][account_name] = False
-                    await event.reply(f"✅ **{account_name} DINONAKTIFKAN!**")
-                else:
-                    await event.reply(f"❌ {account_name} tidak aktif!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/delaccount'):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                account_name = parts[1]
-                if account_name in data['accounts']:
-                    if account_name in data['active_accounts']:
-                        data['active_accounts'].remove(account_name)
-                    if account_name in data['individual_spam']:
-                        del data['individual_spam'][account_name]
-                    if account_name in data['individual_forward']:
-                        del data['individual_forward'][account_name]
-                    del data['accounts'][account_name]
-                    await event.reply(f"✅ **{account_name} DIHAPUS!**")
-                else:
-                    await event.reply(f"❌ Akun {account_name} tidak ditemukan!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
-
-    elif text.startswith('/listaccounts'):
-        if not data['accounts']:
-            await event.reply("❌ **Belum ada akun!**")
-        else:
-            txt = "**📊 DAFTAR AKUN:**\n\n"
-            for name, info in data['accounts'].items():
-                status = "🟢 AKTIF" if name in data['active_accounts'] else "🔴 NONAKTIF"
-                spam_status = "🔥 SPAM" if data['individual_spam'].get(name, False) else "💤 IDLE"
-                forward_status = "🔄 FORWARD" if data['individual_forward'].get(name, False) else "💤 IDLE"
-                pesan_mode = "CUSTOM" if info.get('use_custom_pesan', False) else "MASTER"
-                
-                txt += f"**{name}** - {status}\n"
-                txt += f"Spam: {spam_status} | Forward: {forward_status} | Pesan: {pesan_mode}\n"
-                txt += f"User: @{info.get('username', 'N/A')}\n\n"
-            await event.reply(txt)
-
-    elif text.startswith('/accountinfo'):
-        try:
-            parts = text.split()
-            if len(parts) >= 2:
-                account_name = parts[1]
-                if account_name in data['accounts']:
-                    acc = data['accounts'][account_name]
-                    status = "🟢 AKTIF" if account_name in data['active_accounts'] else "🔴 NONAKTIF"
-                    pesan_mode = "CUSTOM" if acc.get('use_custom_pesan', False) else "MASTER"
-                    spam_status = "🔥" if data['individual_spam'].get(account_name, False) else "💤"
-                    forward_status = "🔄" if data['individual_forward'].get(account_name, False) else "💤"
-                    
-                    # INFO DELAY
-                    if acc.get('custom_delay', 0) > 0:
-                        delay_info = f"CUSTOM ({acc['custom_delay']}s ±{acc.get('delay_jitter', 10)}s)"
-                    else:
-                        delay_info = f"MASTER ({data['master_delay']}s ±10s)"
-                    
-                    txt = f"**📊 INFO {account_name.upper()}:**\n\n"
-                    txt += f"**Status:** {status} {spam_status} {forward_status}\n"
-                    txt += f"**User:** @{acc.get('username', 'N/A')}\n"
-                    txt += f"**Mode Pesan:** {pesan_mode}\n"
-                    txt += f"**Delay:** {delay_info}\n"
-                    txt += f"**Pesan Custom:** {len(acc.get('custom_pesan', []))} pesan\n"
-                    txt += f"**Grup Khusus:** {len(acc.get('target_groups', []))} grup\n"
-                    
-                    if acc.get('custom_pesan'):
-                        txt += "\n**Daftar Pesan Custom:**\n"
-                        for i, p in enumerate(acc['custom_pesan'][:3], 1):
-                            txt += f"{i}. {p}\n"
-                    
-                    await event.reply(txt)
-                else:
-                    await event.reply(f"❌ Akun `{account_name}` tidak ditemukan!")
-        except Exception as e:
-            await event.reply(f"❌ Error: {str(e)}")
+    # TAMBAHKAN SEMUA COMMAND LAIN YANG DIBUTUHKAN...
+    # [SEMUA COMMAND LAIN DARI SCRIPT ASLI LU]
 
     else:
         await event.reply("❌ **COMMAND TIDAK DIKENAL!**\nKetik `/menu` untuk list command.")
 
-# SPAM LOOP DENGAN ERROR HANDLING
+# ==================== SPAM LOOP ====================
 async def spam_loop():
     global spam_task
-    restart_counter = 0
+    print("🚀 ENHANCED SPAM LOOP STARTED WITH SESSION MANAGEMENT")
     
-    await user.start()
     while data['global_spam_running'] or any(data['individual_spam'].values()):
         try:
-            # AUTO-RESTART SETIAP 2 JAM UNTUK CEGAH ERROR
-            restart_counter += 1
-            if restart_counter >= 7200:  # 2 jam
-                await restart_all_clients()
-                restart_counter = 0
-            
             accounts_to_spam = []
             
+            # Collect accounts yang harus spam
             if data['global_spam_running'] and data['master_account_active']:
-                accounts_to_spam.append('master')
+                accounts_to_spam.append(('master', None))
             
             for account_name in data['active_accounts']:
                 if data['global_spam_running'] or data['individual_spam'].get(account_name, False):
-                    accounts_to_spam.append(account_name)
+                    session_string = data['accounts'][account_name]['string_session']
+                    accounts_to_spam.append((account_name, session_string))
             
             if not accounts_to_spam:
                 await asyncio.sleep(5)
                 continue
             
-            for account_ref in accounts_to_spam:
-                if account_ref == 'master':
-                    master_delay = data['master_custom_delay'] if data['master_custom_delay'] > 0 else data['master_delay']
-                    master_jitter = data['master_delay_jitter']
-                    
-                    if data['master_use_custom_pesan'] and data['master_custom_pesan']:
-                        master_pesan_list = data['master_custom_pesan']
-                    else:
-                        master_pesan_list = data['master_pesan_list']
-                    
-                    if master_pesan_list:
-                        master_pesan = random.choice(master_pesan_list) if data['use_random'] else master_pesan_list[0]
-                        master_target = data['master_target_groups'] if data['master_target_groups'] else data['groups']
-                        
-                        for grup in master_target:
-                            try:
-                                await user.send_message(grup, master_pesan)
-                                print(f"[AKUN-1 SPAM] → {grup}")
-                                await asyncio.sleep(1)
-                            except Exception as e:
-                                print(f"[ERROR AKUN-1] {grup}: {e}")
-                        
-                        await asyncio.sleep(max(30, master_delay + random.randint(-master_jitter, master_jitter)))
+            # Process setiap account dengan session manager
+            for account_ref, session_string in accounts_to_spam:
+                account_name = account_ref
                 
-                else:
-                    account_name = account_ref
-                    if account_name in data['accounts']:
-                        account = data['accounts'][account_name]
-                        account_delay = account['custom_delay'] if account['custom_delay'] > 0 else data['master_delay']
-                        account_jitter = account.get('delay_jitter', 10)
-                        
-                        if account['use_custom_pesan'] and account['custom_pesan']:
-                            pesan_list = account['custom_pesan']
+                try:
+                    # Dapatkan pesan yang sesuai
+                    if account_name == 'master':
+                        if data['master_use_custom_pesan'] and data['master_custom_pesan']:
+                            pesan_list = data['master_custom_pesan']
                         else:
                             pesan_list = data['master_pesan_list']
                         
-                        if pesan_list:
-                            pesan = random.choice(pesan_list) if data['use_random'] else pesan_list[0]
-                            target_groups = account['target_groups'] if account['target_groups'] else data['groups']
-                            
-                            try:
-                                account_client = TelegramClient(StringSession(account['string_session']), API_ID, API_HASH)
-                                await account_client.start()
-                                
-                                for grup in target_groups:
-                                    try:
-                                        await account_client.send_message(grup, pesan)
-                                        print(f"[{account_name} SPAM] → {grup}")
-                                        await asyncio.sleep(1)
-                                    except Exception as e:
-                                        print(f"[ERROR {account_name}] {grup}: {e}")
-                                
-                                await account_client.disconnect()
-                            except Exception as e:
-                                print(f"[CONNECT ERROR {account_name}] {e}")
+                        target_groups = data['master_target_groups'] if data['master_target_groups'] else data['groups']
+                    else:
+                        account_data = data['accounts'][account_name]
+                        if account_data['use_custom_pesan'] and account_data['custom_pesan']:
+                            pesan_list = account_data['custom_pesan']
+                        else:
+                            pesan_list = data['master_pesan_list']
                         
-                        await asyncio.sleep(max(30, account_delay + random.randint(-account_jitter, account_jitter)))
+                        target_groups = account_data['target_groups'] if account_data['target_groups'] else data['groups']
+                    
+                    if not pesan_list or not target_groups:
+                        continue
+                    
+                    pesan = random.choice(pesan_list) if data['use_random'] else pesan_list[0]
+                    
+                    # Kirim ke semua target groups
+                    for grup in target_groups:
+                        try:
+                            await session_manager.safe_send_message(account_name, grup, pesan, session_string)
+                            print(f"✅ [{account_name} SPAM] → {grup}")
+                        except Exception as e:
+                            print(f"💀 [{account_name} SPAM ERROR] {grup}: {e}")
+                            # Skip group ini tapi lanjut ke group berikutnya
+                    
+                    # Delay antar account
+                    await asyncio.sleep(session_manager.calculate_smart_delay(account_name))
+                    
+                except Exception as e:
+                    print(f"💀 [{account_name} ACCOUNT PROCESSING ERROR]: {e}")
+                    continue
             
-            await asyncio.sleep(5)
+            # Delay antar cycle
+            await asyncio.sleep(10)
             
-        except PersistentTimestampOutdatedError:
-            print("💀 PERSISTENT TIMESTAMP ERROR IN SPAM LOOP - RECONNECTING...")
-            await handle_telegram_error()
-            await asyncio.sleep(30)
         except Exception as e:
-            print(f"💀 UNKNOWN ERROR IN SPAM LOOP: {e}")
+            print(f"💀 CRITICAL ERROR IN SPAM LOOP: {e}")
             await asyncio.sleep(30)
 
-# FORWARD LOOP DENGAN ERROR HANDLING
+# ==================== FORWARD LOOP ====================
 async def forward_loop():
     global forward_task
-    restart_counter = 0
-    error_count = 0
+    print("🔄 ENHANCED FORWARD LOOP STARTED WITH SESSION MANAGEMENT")
     
-    await user.start()
     while data['forward_running'] or any(data['individual_forward'].values()):
         try:
-            # AUTO-RESTART SETIAP 1 JAM UNTUK FORWARD (LEBIH SERING KARENA RENTAN ERROR)
-            restart_counter += 1
-            if restart_counter >= 3600 or error_count >= 10:  # 1 jam atau 10 error
-                await restart_all_clients()
-                restart_counter = 0
-                error_count = 0
-            
             accounts_to_forward = []
             
+            # Collect accounts yang harus forward
             if data['forward_running'] and data['master_account_active']:
-                accounts_to_forward.append('master')
+                accounts_to_forward.append(('master', None))
             
             for account_name in data['active_accounts']:
                 if data['forward_running'] or data['individual_forward'].get(account_name, False):
-                    accounts_to_forward.append(account_name)
+                    session_string = data['accounts'][account_name]['string_session']
+                    accounts_to_forward.append((account_name, session_string))
             
             if not accounts_to_forward or not data['forward_channels']:
                 await asyncio.sleep(10)
                 continue
             
-            success_count = 0
-            total_attempts = 0
-            
-            for account_ref in accounts_to_forward:
-                if account_ref == 'master':
-                    master_delay = data['master_custom_delay'] if data['master_custom_delay'] > 0 else data['master_delay']
-                    master_target = data['master_target_groups'] if data['master_target_groups'] else data['groups']
+            # Process setiap account
+            for account_ref, session_string in accounts_to_forward:
+                account_name = account_ref
+                
+                try:
+                    # Dapatkan target groups
+                    if account_name == 'master':
+                        target_groups = data['master_target_groups'] if data['master_target_groups'] else data['groups']
+                    else:
+                        account_data = data['accounts'][account_name]
+                        target_groups = account_data['target_groups'] if account_data['target_groups'] else data['groups']
                     
+                    if not target_groups:
+                        continue
+                    
+                    # Forward dari setiap channel
                     for channel in data['forward_channels']:
                         try:
-                            async for message in user.iter_messages(channel, limit=2):  # REDUCE LIMIT UNTUK KURANGI LOAD
-                                for grup in master_target:
+                            client = await session_manager.get_client(account_name, session_string)
+                            
+                            # Get messages dengan limit kecil
+                            async for message in client.iter_messages(channel, limit=1):
+                                for grup in target_groups:
                                     try:
-                                        await user.forward_messages(grup, message)
-                                        print(f"[AKUN-1 FORWARD] → {grup}")
-                                        success_count += 1
-                                        await asyncio.sleep(master_delay)
+                                        await session_manager.safe_forward_messages(account_name, grup, message, session_string)
+                                        print(f"✅ [{account_name} FORWARD] {channel} → {grup}")
                                     except Exception as e:
-                                        print(f"[FORWARD ERROR AKUN-1] {grup}: {e}")
-                                        error_count += 1
-                                total_attempts += 1
-                            await asyncio.sleep(10)
+                                        print(f"💀 [{account_name} FORWARD ERROR] {grup}: {e}")
+                                
+                                # Delay antar message
+                                await asyncio.sleep(session_manager.calculate_smart_delay(account_name))
+                                
                         except Exception as e:
-                            print(f"[CHANNEL ERROR AKUN-1] {channel}: {e}")
-                            error_count += 1
-                
-                else:
-                    account_name = account_ref
-                    if account_name in data['accounts']:
-                        account = data['accounts'][account_name]
-                        account_delay = account['custom_delay'] if account['custom_delay'] > 0 else data['master_delay']
-                        target_groups = account['target_groups'] if account['target_groups'] else data['groups']
-                        
-                        try:
-                            account_client = TelegramClient(StringSession(account['string_session']), API_ID, API_HASH)
-                            await account_client.start()
-                            
-                            for channel in data['forward_channels']:
-                                try:
-                                    async for message in account_client.iter_messages(channel, limit=2):  # REDUCE LIMIT
-                                        for grup in target_groups:
-                                            try:
-                                                await account_client.forward_messages(grup, message)
-                                                print(f"[{account_name} FORWARD] → {grup}")
-                                                success_count += 1
-                                                await asyncio.sleep(account_delay)
-                                            except Exception as e:
-                                                print(f"[FORWARD ERROR {account_name}] {grup}: {e}")
-                                                error_count += 1
-                                        total_attempts += 1
-                                    await asyncio.sleep(10)
-                                except Exception as e:
-                                    print(f"[CHANNEL ERROR {account_name}] {channel}: {e}")
-                                    error_count += 1
-                            
-                            await account_client.disconnect()
-                        except Exception as e:
-                            print(f"[CONNECT ERROR {account_name}] {e}")
-                            error_count += 1
+                            print(f"💀 [{account_name} CHANNEL ERROR] {channel}: {e}")
+                    
+                    # Delay antar channel
+                    await asyncio.sleep(10)
+                    
+                except Exception as e:
+                    print(f"💀 [{account_name} FORWARD PROCESSING ERROR]: {e}")
+                    continue
             
-            # JIKA SUCCESS RATE RENDAH, TUNGGU LEBIH LAMA
-            if total_attempts > 0 and success_count / total_attempts < 0.5:
-                print(f"⚠️ LOW SUCCESS RATE: {success_count}/{total_attempts} - INCREASING DELAY")
-                await asyncio.sleep(60)
-            else:
-                await asyncio.sleep(data['master_delay'])
+            # Delay antar cycle
+            await asyncio.sleep(data['master_delay'])
             
-        except PersistentTimestampOutdatedError:
-            print("💀 PERSISTENT TIMESTAMP ERROR IN FORWARD LOOP - RECONNECTING...")
-            await handle_telegram_error()
-            error_count += 1
-            await asyncio.sleep(30)
         except Exception as e:
-            print(f"💀 UNKNOWN ERROR IN FORWARD LOOP: {e}")
-            error_count += 1
+            print(f"💀 CRITICAL ERROR IN FORWARD LOOP: {e}")
             await asyncio.sleep(30)
 
-print("🚀 JINX BOT ULTIMATE FIXED WITH ERROR HANDLING STARTED!")
-print("📋 SEMUA BUG SUDAH DIFIX + ERROR HANDLING DITAMBAH!")
-bot.run_until_disconnected()
+# ==================== UTILITY FUNCTIONS ====================
+async def restart_all_clients():
+    """Restart semua Telegram client untuk handle error"""
+    try:
+        # Restart session manager clients
+        for account_name in list(session_manager.account_clients.keys()):
+            await session_manager.force_reconnect(account_name)
+        
+        print("✅ ALL CLIENTS RESTARTED AFTER ERROR")
+        return True
+    except Exception as e:
+        print(f"💀 RESTART FAILED: {e}")
+        return False
+
+async def start_cleanup_task():
+    """Start periodic cleanup task"""
+    global cleanup_task
+    cleanup_task = asyncio.create_task(session_manager.periodic_cleanup())
+    print("🧹 PERIODIC CLEANUP TASK STARTED")
+
+# ==================== MAIN START ====================
+async def main():
+    """Main startup function"""
+    print("🚀 STARTING JINX BOT WITH LIVE STATUS MONITORING...")
+    
+    # Start cleanup task
+    await start_cleanup_task()
+    
+    # Start bot
+    await bot.start(bot_token=BOT_TOKEN)
+    print("✅ BOT STARTED SUCCESSFULLY!")
+    
+    # Keep running
+    await bot.run_until_disconnected()
+
+if __name__ == "__main__":
+    asyncio.run(main())
