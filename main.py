@@ -1,4 +1,9 @@
-# main.py - JINX BOT FULL FEATURES RAILWAY
+# FIX FOR PYTHON 3.13 - IMGHDR MODULE
+import sys
+if sys.version_info >= (3, 13):
+    import types
+    sys.modules['imghdr'] = types.ModuleType('imghdr')
+
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.errors import FloodWaitError
@@ -26,6 +31,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 print("🚀 JINX BOT FULL FEATURES STARTING...")
+
+# ... LANJUTAN SCRIPT LU YANG EXISTING TANPA DIUBAH ...
+# [SEMUA FITUR SPAM, FORWARD, MULTI-ACCOUNT, DLL TETAP ADA]
 
 # Environment variables
 API_ID = int(os.getenv('API_ID'))
