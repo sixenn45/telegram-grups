@@ -1197,27 +1197,44 @@ async def spam_loop():
 # ==================== FORWARD LOOP ====================
 async def forward_loop():
     global forward_task
-    print("🔄 FORWARD LOOP STARTED")
+    print("🔄 FORWARD LOOP FIXED VERSION STARTED")
     
     while data['forward_running'] or any(data['individual_forward'].values()):
         try:
+            print(f"🎯 FORWARD LOOP CYCLE STARTED")
+            print(f"   - Global running: {data['forward_running']}")
+            print(f"   - Forward channels: {data['forward_channels']}")
+            
             accounts_to_forward = []
             
             if data['forward_running'] and data['master_account_active']:
                 accounts_to_forward.append(('master', None))
+                print("✅ MASTER account added to forward list")
             
             for account_name in data['active_accounts']:
                 if data['forward_running'] or data['individual_forward'].get(account_name, False):
                     session_string = data['accounts'][account_name]['string_session']
                     accounts_to_forward.append((account_name, session_string))
+                    print(f"✅ {account_name} added to forward list")
             
-            if not accounts_to_forward or not data['forward_channels']:
+            if not accounts_to_forward:
+                print("❌ NO ACCOUNTS TO FORWARD - Waiting 10s")
                 await asyncio.sleep(10)
                 continue
             
+            if not data['forward_channels']:
+                print("❌ NO FORWARD CHANNELS CONFIGURED - Waiting 10s")
+                await asyncio.sleep(10)
+                continue
+            
+            print(f"🎯 PROCESSING {len(accounts_to_forward)} ACCOUNTS, {len(data['forward_channels'])} CHANNELS")
+            
             for account_ref, session_string in accounts_to_forward:
                 account_name = account_ref
+                print(f"🔍 PROCESSING ACCOUNT: {account_name}")
+                
                 try:
+                    # Get target groups
                     if account_name == 'master':
                         target_groups = data['master_target_groups'] if data['master_target_groups'] else data['groups']
                     else:
@@ -1225,44 +1242,88 @@ async def forward_loop():
                         target_groups = account_data['target_groups'] if account_data['target_groups'] else data['groups']
                     
                     if not target_groups:
+                        print(f"❌ {account_name}: NO TARGET GROUPS - Skipping")
                         continue
                     
+                    print(f"✅ {account_name}: {len(target_groups)} target groups")
+                    
+                    # Process each channel
                     for channel in data['forward_channels']:
+                        print(f"🔍 {account_name}: CHECKING CHANNEL {channel}")
+                        
                         try:
                             client = await session_manager.get_client(account_name, session_string)
-                            messages = []
-                            async for message in client.iter_messages(channel, limit=1):
-                                if message and not message.empty and message.text:
-                                    messages.append(message)
-                                    break
+                            print(f"✅ {account_name}: Client connected")
                             
-                            if not messages:
+                            # FIX: Handle both username dan numeric ID
+                            try:
+                                if isinstance(channel, str) and channel.startswith('@'):
+                                    channel_entity = await client.get_entity(channel)
+                                else:
+                                    try:
+                                        channel_entity = await client.get_entity(int(channel))
+                                    except:
+                                        channel_entity = await client.get_entity(channel)
+                                print(f"✅ {account_name}: Channel entity found for {channel}")
+                            except Exception as e:
+                                print(f"❌ {account_name}: CANNOT ACCESS CHANNEL {channel}: {e}")
                                 continue
                             
-                            for message in messages:
-                                for grup in target_groups:
-                                    try:
-                                        if message and hasattr(message, 'text') and message.text:
-                                            await session_manager.safe_forward_messages(account_name, grup, message, session_string)
-                                            print(f"✅ [{account_name} FORWARD] {channel} → {grup}")
-                                    except Exception as e:
-                                        print(f"💀 [{account_name} FORWARD ERROR] {grup}: {e}")
+                            # Get messages from channel
+                            messages = []
+                            try:
+                                async for message in client.iter_messages(channel_entity, limit=3):
+                                    if message and not message.empty:
+                                        messages.append(message)
+                                        print(f"✅ {account_name}: FOUND MESSAGE {message.id} in {channel}")
+                                        break
                                 
-                                await asyncio.sleep(session_manager.calculate_smart_delay(account_name))
+                                if not messages:
+                                    print(f"❌ {account_name}: NO MESSAGES FOUND in {channel}")
+                                    continue
+                                    
+                            except Exception as e:
+                                print(f"❌ {account_name}: ERROR GETTING MESSAGES from {channel}: {e}")
+                                continue
+                            
+                            # Forward to all target groups
+                            message = messages[0]
+                            success_count = 0
+                            error_count = 0
+                            
+                            for grup in target_groups:
+                                try:
+                                    print(f"🔄 {account_name}: FORWARDING {channel} → {grup}")
+                                    await session_manager.safe_forward_messages(account_name, grup, message, session_string)
+                                    print(f"✅ {account_name}: SUCCESS {channel} → {grup}")
+                                    success_count += 1
+                                except Exception as e:
+                                    print(f"❌ {account_name}: FAILED {channel} → {grup}: {e}")
+                                    error_count += 1
+                            
+                            print(f"📊 {account_name}: Forward results - {success_count} success, {error_count} errors")
+                            
+                            # Delay between messages
+                            delay = session_manager.calculate_smart_delay(account_name)
+                            print(f"⏰ {account_name}: Waiting {delay}s before next message")
+                            await asyncio.sleep(delay)
                                 
                         except Exception as e:
-                            print(f"💀 [{account_name} CHANNEL ERROR] {channel}: {e}")
+                            print(f"❌ {account_name}: CHANNEL PROCESSING ERROR {channel}: {e}")
                     
+                    # Delay between channels
+                    print(f"⏰ {account_name}: Waiting 10s before next channel")
                     await asyncio.sleep(10)
                     
                 except Exception as e:
-                    print(f"💀 [{account_name} FORWARD ERROR]: {e}")
+                    print(f"❌ {account_name}: ACCOUNT PROCESSING ERROR: {e}")
                     continue
             
+            print(f"🎯 FORWARD CYCLE COMPLETED - Waiting {data['master_delay']}s")
             await asyncio.sleep(data['master_delay'])
             
         except Exception as e:
-            print(f"💀 CRITICAL ERROR IN FORWARD LOOP: {e}")
+            print(f"❌ CRITICAL ERROR IN FORWARD LOOP: {e}")
             await asyncio.sleep(30)
 
 # ==================== UTILITY FUNCTIONS ====================
