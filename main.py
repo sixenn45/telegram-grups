@@ -301,16 +301,30 @@ class AdvancedSessionManager:
         jitter = random.randint(-10, 10)
         return max(30, base_delay + jitter)
     
-    async def force_reconnect(self, account_name):
-        """Force reconnect session tertentu"""
-        try:
-            if account_name in self.account_clients:
-                client = self.account_clients[account_name]
-                await client.disconnect()
-                del self.account_clients[account_name]
-                logger.info(f"🔄 [{account_name}] Force reconnected")
-        except Exception as e:
-            logger.error(f"💀 [{account_name}] Force reconnect failed: {e}")
+    async def safe_restart(self, account_name):
+    """Restart session tanpa menghapus dari memory"""
+    try:
+        if account_name in self.account_clients:
+            client = self.account_clients[account_name]
+            await client.disconnect()
+            # ⚡ TIDAK DIHAPUS DARI MEMORY!
+            await client.start()
+            logger.info(f"🔄 [{account_name}] Session safely restarted")
+            return True
+    except Exception as e:
+        logger.error(f"💀 [{account_name}] Safe restart failed: {e}")
+        return False
+
+async def force_reconnect(self, account_name):
+    """Force reconnect session tertentu"""
+    try:
+        if account_name in self.account_clients:
+            client = self.account_clients[account_name]
+            await client.disconnect()
+            del self.account_clients[account_name]
+            logger.info(f"🔄 [{account_name}] Force reconnected")
+    except Exception as e:
+        logger.error(f"💀 [{account_name}] Force reconnect failed: {e}")
     
     async def periodic_cleanup(self):
         """Periodic cleanup dan maintenance"""
@@ -318,16 +332,16 @@ class AdvancedSessionManager:
             try:
                 current_time = time.time()
                 
-                if current_time - self.last_restart > 14400:
+                if current_time - self.last_restart > 43200:
                     logger.info("🔄 AUTO-RESTARTING ALL SESSIONS AFTER 4 HOURS...")
                     for account_name in list(self.account_clients.keys()):
-                        await self.force_reconnect(account_name)
+                        await self.safe_restart(account_name)
                     self.last_restart = current_time
                     self.restart_count += 1
                 
                 for account_name in list(self.session_stats.keys()):
                     stats = self.session_stats[account_name]
-                    if current_time - stats['last_activity'] > 86400:
+                    if current_time - stats['last_activity'] > 604800:
                         del self.session_stats[account_name]
                 
                 await asyncio.sleep(300)
@@ -1376,8 +1390,8 @@ async def restart_all_clients():
 async def start_cleanup_task():
     """Start periodic cleanup task"""
     global cleanup_task
-    cleanup_task = asyncio.create_task(session_manager.periodic_cleanup())
-    print("🧹 PERIODIC CLEANUP TASK STARTED")
+    # cleanup_task = asyncio.create_task(session_manager.periodic_cleanup())  # ⚡ COMMENT BARIS INI
+    print("🧹 PERIODIC CLEANUP DISABLED FOR TESTING")  # ⚡ EDIT PESAN INI
 
 # ==================== MAIN START ====================
 async def main():
