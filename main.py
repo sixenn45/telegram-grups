@@ -1,16 +1,16 @@
-# JINX_BOT_ULTIMATE_FIXED_WITH_LIVE_STATUS.py
+# JINX_BOT_ULTIMATE_FIXED_NO_AUTO_RESTART.py
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.errors import PersistentTimestampOutdatedError, FloodWaitError, SessionPasswordNeededError
 import os, asyncio, random, re, time, logging
 
-print("🔥 JINX BOT ULTIMATE FIXED WITH LIVE STATUS STARTING...")
+print("🔥 JINX BOT ULTIMATE FIXED - NO AUTO RESTART")
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ENV VARIABLES DENGAN VALIDATION
+# ENV VARIABLES
 try:
     API_ID = int(os.getenv('API_ID', 0))
     API_HASH = os.getenv('API_HASH', '')
@@ -25,7 +25,7 @@ except Exception as e:
     print(f"💀 ERROR LOADING ENV VARS: {e}")
     exit(1)
 
-# ==================== ENHANCED SESSION MANAGEMENT WITH LIVE STATUS ====================
+# ==================== ENHANCED SESSION MANAGEMENT ====================
 class AdvancedSessionManager:
     def __init__(self):
         self.account_clients = {}
@@ -34,28 +34,31 @@ class AdvancedSessionManager:
         self.restart_count = 0
         self.live_status = {}
         
-    async def get_client(self, account_name, session_string=None):
-        """Dapatkan client dengan intelligent session management + live status"""
+    async def safe_restart(self, account_name):
+        """Restart session tanpa menghapus dari memory"""
         try:
-            # Check live connection status
+            if account_name in self.account_clients:
+                client = self.account_clients[account_name]
+                await client.disconnect()
+                await client.start()
+                logger.info(f"🔄 [{account_name}] Session safely restarted")
+                return True
+        except Exception as e:
+            logger.error(f"💀 [{account_name}] Safe restart failed: {e}")
+            return False
+
+    async def get_client(self, account_name, session_string=None):
+        """Dapatkan client dengan intelligent session management"""
+        try:
             if account_name in self.account_clients:
                 client = self.account_clients[account_name]
                 if await self._is_client_connected(client):
-                    self.live_status[account_name] = {
-                        'status': 'connected',
-                        'last_check': time.time(),
-                        'ping': 'OK'
-                    }
+                    self.live_status[account_name] = {'status': 'connected', 'last_check': time.time(), 'ping': 'OK'}
                     return client
                 else:
-                    self.live_status[account_name] = {
-                        'status': 'disconnected', 
-                        'last_check': time.time(),
-                        'ping': 'DEAD'
-                    }
+                    self.live_status[account_name] = {'status': 'disconnected', 'last_check': time.time(), 'ping': 'DEAD'}
                     del self.account_clients[account_name]
             
-            # Buat client baru
             if account_name == 'master':
                 client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
             else:
@@ -63,187 +66,117 @@ class AdvancedSessionManager:
                     raise Exception(f"Session string required for {account_name}")
                 client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
             
-            # Start client dengan timeout
             await asyncio.wait_for(client.start(), timeout=30)
             
-            # Test connection dengan ping
             try:
                 me = await client.get_me()
                 self.live_status[account_name] = {
-                    'status': 'connected',
-                    'last_check': time.time(),
-                    'ping': 'OK',
-                    'username': me.username,
-                    'user_id': me.id,
-                    'first_name': me.first_name
+                    'status': 'connected', 'last_check': time.time(), 'ping': 'OK',
+                    'username': me.username, 'user_id': me.id, 'first_name': me.first_name
                 }
                 logger.info(f"✅ [{account_name}] Session started - @{me.username}")
             except Exception as e:
-                self.live_status[account_name] = {
-                    'status': 'connected',
-                    'last_check': time.time(), 
-                    'ping': 'PING_FAILED',
-                    'error': str(e)
-                }
+                self.live_status[account_name] = {'status': 'connected', 'last_check': time.time(), 'ping': 'PING_FAILED', 'error': str(e)}
                 logger.warning(f"⚠️ [{account_name}] Connected but ping failed: {e}")
             
-            # Simpan client
             self.account_clients[account_name] = client
             
-            # Update stats
             if account_name not in self.session_stats:
                 self.session_stats[account_name] = {
-                    'success_count': 0,
-                    'error_count': 0,
-                    'last_activity': time.time(),
-                    'flood_waits': 0
+                    'success_count': 0, 'error_count': 0, 'last_activity': time.time(), 'flood_waits': 0
                 }
             
             return client
             
         except Exception as e:
-            self.live_status[account_name] = {
-                'status': 'error',
-                'last_check': time.time(),
-                'ping': 'ERROR',
-                'error': str(e)
-            }
+            self.live_status[account_name] = {'status': 'error', 'last_check': time.time(), 'ping': 'ERROR', 'error': str(e)}
             logger.error(f"💀 [{account_name}] Failed to start session: {e}")
             raise
 
     async def _is_client_connected(self, client):
-        """Check if client is really connected"""
         try:
             return client.is_connected()
         except:
             return False
 
     async def safe_send_message(self, account_name, target, message, session_string=None):
-        """Kirim message dengan error handling yang advanced"""
         try:
             client = await self.get_client(account_name, session_string)
-            
-            # Dynamic delay berdasarkan performance
             base_delay = self.calculate_smart_delay(account_name)
             await asyncio.sleep(base_delay)
-            
             result = await client.send_message(target, message)
-            
-            # Update success stats
             self.session_stats[account_name]['success_count'] += 1
             self.session_stats[account_name]['last_activity'] = time.time()
-            
             logger.info(f"✅ [{account_name}] Message sent to {target}")
             return result
-            
         except FloodWaitError as e:
             wait_time = e.seconds
             logger.warning(f"⏳ [{account_name}] Flood wait {wait_time}s")
-            
             self.session_stats[account_name]['flood_waits'] += 1
             self.session_stats[account_name]['error_count'] += 1
-            
             await asyncio.sleep(wait_time + 10)
             return await self.safe_send_message(account_name, target, message, session_string)
-            
-        except PersistentTimestampOutdatedError:
-            logger.warning(f"🔄 [{account_name}] Persistent timestamp error - reconnecting...")
-            await self.force_reconnect(account_name)
-            await asyncio.sleep(30)
-            return await self.safe_send_message(account_name, target, message, session_string)
-            
         except Exception as e:
             logger.error(f"💀 [{account_name}] Send message error: {e}")
-            
             self.session_stats[account_name]['error_count'] += 1
-            
-            if self.session_stats[account_name]['error_count'] % 3 == 0:
-                await self.force_reconnect(account_name)
-            
             raise
-    
+
     async def safe_forward_messages(self, account_name, target, messages, session_string=None):
-        """Forward messages dengan error handling"""
         try:
             client = await self.get_client(account_name, session_string)
-            
             base_delay = self.calculate_smart_delay(account_name)
             await asyncio.sleep(base_delay)
-            
             result = await client.forward_messages(target, messages)
-            
             self.session_stats[account_name]['success_count'] += 1
             self.session_stats[account_name]['last_activity'] = time.time()
-            
             logger.info(f"✅ [{account_name}] Messages forwarded to {target}")
             return result
-            
         except FloodWaitError as e:
             wait_time = e.seconds
             logger.warning(f"⏳ [{account_name}] Flood wait {wait_time}s for forward")
-            
             self.session_stats[account_name]['flood_waits'] += 1
             self.session_stats[account_name]['error_count'] += 1
-            
             await asyncio.sleep(wait_time + 10)
             return await self.safe_forward_messages(account_name, target, messages, session_string)
-            
-        except PersistentTimestampOutdatedError:
-            logger.warning(f"🔄 [{account_name}] Persistent timestamp error in forward - reconnecting...")
-            await self.force_reconnect(account_name)
-            await asyncio.sleep(30)
-            return await self.safe_forward_messages(account_name, target, messages, session_string)
-            
         except Exception as e:
             logger.error(f"💀 [{account_name}] Forward error: {e}")
             self.session_stats[account_name]['error_count'] += 1
-            
-            if self.session_stats[account_name]['error_count'] % 3 == 0:
-                await self.force_reconnect(account_name)
-            
             raise
 
+    async def force_reconnect(self, account_name):
+        try:
+            if account_name in self.account_clients:
+                client = self.account_clients[account_name]
+                await client.disconnect()
+                del self.account_clients[account_name]
+                logger.info(f"🔄 [{account_name}] Force reconnected")
+        except Exception as e:
+            logger.error(f"💀 [{account_name}] Force reconnect failed: {e}")
+
     async def check_live_status(self, account_name, session_string=None):
-        """Check real-time status session tertentu"""
         try:
             if account_name in self.account_clients and await self._is_client_connected(self.account_clients[account_name]):
                 client = self.account_clients[account_name]
                 me = await client.get_me()
                 self.live_status[account_name] = {
-                    'status': 'connected',
-                    'last_check': time.time(),
-                    'ping': 'OK',
-                    'username': me.username,
-                    'user_id': me.id,
-                    'first_name': me.first_name
+                    'status': 'connected', 'last_check': time.time(), 'ping': 'OK',
+                    'username': me.username, 'user_id': me.id, 'first_name': me.first_name
                 }
                 return True
             else:
                 client = await self.get_client(account_name, session_string)
                 me = await client.get_me()
                 self.live_status[account_name] = {
-                    'status': 'connected',
-                    'last_check': time.time(),
-                    'ping': 'OK',
-                    'username': me.username, 
-                    'user_id': me.id,
-                    'first_name': me.first_name
+                    'status': 'connected', 'last_check': time.time(), 'ping': 'OK',
+                    'username': me.username, 'user_id': me.id, 'first_name': me.first_name
                 }
                 return True
         except Exception as e:
-            self.live_status[account_name] = {
-                'status': 'error',
-                'last_check': time.time(),
-                'ping': 'ERROR',
-                'error': str(e)
-            }
+            self.live_status[account_name] = {'status': 'error', 'last_check': time.time(), 'ping': 'ERROR', 'error': str(e)}
             return False
 
     async def get_all_live_status(self):
-        """Check status semua sessions yang terdaftar"""
         status_report = {}
-        
-        # Check master account
         try:
             if 'master' not in self.live_status:
                 await self.check_live_status('master')
@@ -251,7 +184,6 @@ class AdvancedSessionManager:
         except Exception as e:
             status_report['master'] = {'status': 'error', 'error': str(e)}
         
-        # Check semua accounts yang ada di data
         for account_name in data.get('accounts', {}).keys():
             try:
                 session_string = data['accounts'][account_name]['string_session']
@@ -264,87 +196,45 @@ class AdvancedSessionManager:
         return status_report
 
     def get_live_status_emoji(self, status_data):
-        """Dapatkan emoji berdasarkan status"""
         status = status_data.get('status', 'unknown')
         ping = status_data.get('ping', 'UNKNOWN')
-        
-        if status == 'connected' and ping == 'OK':
-            return '🟢'
-        elif status == 'connected' and ping == 'PING_FAILED':
-            return '🟡'
-        elif status == 'disconnected':
-            return '🔴'
-        elif status == 'error':
-            return '💀'
-        else:
-            return '⚫'
+        if status == 'connected' and ping == 'OK': return '🟢'
+        elif status == 'connected' and ping == 'PING_FAILED': return '🟡'
+        elif status == 'disconnected': return '🔴'
+        elif status == 'error': return '💀'
+        else: return '⚫'
 
     def calculate_smart_delay(self, account_name):
-        """Hitung delay intelligent berdasarkan performance account"""
         if account_name not in self.session_stats:
             return data['master_delay']
-        
         stats = self.session_stats[account_name]
         total_actions = stats['success_count'] + stats['error_count']
-        
         if total_actions == 0:
             return data['master_delay']
-        
         error_rate = stats['error_count'] / total_actions
-        
         base_delay = data['master_delay']
-        if error_rate > 0.3:
-            base_delay *= 2
-        elif error_rate > 0.1:
-            base_delay *= 1.5
-        
+        if error_rate > 0.3: base_delay *= 2
+        elif error_rate > 0.1: base_delay *= 1.5
         jitter = random.randint(-10, 10)
         return max(30, base_delay + jitter)
-    
-    async def safe_restart(self, account_name):
-    """Restart session tanpa menghapus dari memory"""
-    try:
-        if account_name in self.account_clients:
-            client = self.account_clients[account_name]
-            await client.disconnect()
-            # ⚡ TIDAK DIHAPUS DARI MEMORY!
-            await client.start()
-            logger.info(f"🔄 [{account_name}] Session safely restarted")
-            return True
-    except Exception as e:
-        logger.error(f"💀 [{account_name}] Safe restart failed: {e}")
-        return False
 
-async def force_reconnect(self, account_name):
-    """Force reconnect session tertentu"""
-    try:
-        if account_name in self.account_clients:
-            client = self.account_clients[account_name]
-            await client.disconnect()
-            del self.account_clients[account_name]
-            logger.info(f"🔄 [{account_name}] Force reconnected")
-    except Exception as e:
-        logger.error(f"💀 [{account_name}] Force reconnect failed: {e}")
-    
     async def periodic_cleanup(self):
-        """Periodic cleanup dan maintenance"""
+        """Periodic cleanup - AUTO RESTART DISABLED"""
         while True:
             try:
                 current_time = time.time()
                 
-                if current_time - self.last_restart > 43200:
-                    logger.info("🔄 AUTO-RESTARTING ALL SESSIONS AFTER 4 HOURS...")
-                    for account_name in list(self.account_clients.keys()):
-                        await self.safe_restart(account_name)
-                    self.last_restart = current_time
-                    self.restart_count += 1
+                # Health check connections saja - NO AUTO RESTART
+                for account_name in list(self.account_clients.keys()):
+                    try:
+                        client = self.account_clients[account_name]
+                        if not await self._is_client_connected(client):
+                            logger.warning(f"🔄 [{account_name}] Connection lost, reconnecting...")
+                            await self.safe_restart(account_name)
+                    except:
+                        pass
                 
-                for account_name in list(self.session_stats.keys()):
-                    stats = self.session_stats[account_name]
-                    if current_time - stats['last_activity'] > 604800:
-                        del self.session_stats[account_name]
-                
-                await asyncio.sleep(300)
+                await asyncio.sleep(600)
                 
             except Exception as e:
                 logger.error(f"💀 Periodic cleanup error: {e}")
@@ -358,7 +248,7 @@ spam_task = None
 forward_task = None
 cleanup_task = None
 
-# DATA STORAGE LENGKAP - SEMUA FITUR TETAP ADA
+# DATA STORAGE LENGKAP
 data = {
     "groups": [],
     "master_pesan_list": ["JOIN @Info_Scammer_Shell2", "REKBER ON!!", "OPEN PEMBELAJARAN SHELL", "PM @jktblackhat UNTUK TOOLS"],
@@ -382,26 +272,98 @@ data = {
 # Initialize bot client
 bot = TelegramClient('bot', API_ID, API_HASH)
 
-# ==================== TEST HANDLER DULU ====================
+# ==================== BASIC HANDLERS ====================
 @bot.on(events.NewMessage(pattern='/ping'))
 async def ping_handler(event):
-    """Test handler buat debug"""
-    print("🎯 PING COMMAND RECEIVED!")
-    await event.reply("🏓 PONG! Bot aktif dan responsive!")
+    await event.reply("🏓 PONG! Bot aktif!")
 
 @bot.on(events.NewMessage(pattern='/test'))
 async def test_handler(event):
-    """Test connection"""
     try:
         me = await bot.get_me()
-        await event.reply(f"✅ **TEST BERHASIL!**\n"
-                         f"Bot: @{me.username}\n"
-                         f"ID: {me.id}\n"
-                         f"Connected: {await bot.is_connected()}")
-        logger.info("✅ Test command executed successfully")
+        is_connected = bot.is_connected()
+        await event.reply(f"✅ **TEST BERHASIL!**\nBot: @{me.username}\nID: {me.id}\nConnected: {is_connected}")
     except Exception as e:
         await event.reply(f"❌ **TEST GAGAL:** {str(e)}")
-        logger.error(f"💀 Test command failed: {e}")
+
+@bot.on(events.NewMessage(pattern='/menu'))
+async def menu_handler(event):
+    menu = """
+**🔥 JINX BOT ULTIMATE - NO AUTO RESTART**
+
+**📊 LIVE STATUS COMMANDS:**
+`/live_status` - Lihat status semua sessions
+`/check_session nama` - Check session tertentu  
+`/session_stats` - Lihat performance statistics
+`/restart_sessions` - Restart semua sessions
+
+**👥 SPAM CONTROL PER AKUN:**
+`/spam_on akun1` - Spam akun1 saja
+`/spam_on akun2` - Spam akun2 saja  
+`/spam_on all` - Spam semua akun
+`/spam_off akun1` - Stop spam akun1
+`/spam_off all` - Stop semua spam
+
+**🔄 FORWARD CONTROL PER AKUN:**
+`/forward_on akun1` - Forward akun1 saja
+`/forward_on akun2` - Forward akun2 saja
+`/forward_on all` - Forward semua akun  
+`/forward_off akun1` - Stop forward akun1
+`/forward_off all` - Stop semua forward
+
+**⏰ DELAY MANAGEMENT:**
+`/masterdelay 60` - Set delay master
+`/setdelay_akun nama 90` - Delay custom per akun
+`/setjitter_akun nama 20` - Set random jitter
+`/resetdelay_akun nama` - Reset delay akun
+`/setdelay_master 45` - Delay custom akun 1
+`/setjitter_master 15` - Jitter custom akun 1
+
+**📝 PESAN MANAGEMENT:**
+`/addpesan teks` - Tambah pesan master
+`/addpesan_akun nama teks` - Pesan custom per akun
+`/addpesan_master teks` - Pesan custom akun 1
+`/deletepesan teks` - Hapus pesan master
+`/listpesan` - Lihat pesan master
+`/clearallpesan` - Hapus semua pesan
+
+**🎯 PESAN MODE:**
+`/setpesanmode nama custom|master` - Set mode pesan akun
+`/setpesanmode_master custom|master` - Set mode akun 1
+
+**📢 GRUP MANAGEMENT:**
+`/add @grup` - Tambah grup global
+`/del @grup` - Hapus grup
+`/listgroups` - Lihat grup
+`/addgroup_akun nama @grup` - Grup khusus per akun
+`/delgroup_akun nama @grup` - Hapus grup khusus
+`/addgroup_master @grup` - Grup khusus akun 1
+
+**🎯 CHANNEL FORWARD:**
+`/forward_add @channel` - Tambah channel sumber
+`/forward_remove @channel` - Hapus channel
+`/listchannels` - Lihat channel sumber
+`/forward` - Manual forward (reply pesan)
+
+**👑 AKUN 1 (MASTER):**
+`/master on` - Aktifkan akun 1
+`/master off` - Nonaktifkan akun 1
+`/masterinfo` - Info akun 1
+
+**👥 MANAJEMEN AKUN LAIN:**
+`/addaccount nama session` - Tambah akun baru
+`/activate nama` - Aktifkan akun
+`/deactivate nama` - Nonaktifkan akun
+`/delaccount nama` - Hapus akun
+`/listaccounts` - Lihat semua akun
+`/accountinfo nama` - Info detail akun
+
+**📊 INFO:**
+`/status` - Status lengkap
+`/test` - Test bot
+`/restart` - Restart client manual
+"""
+    await event.reply(menu)
 
 # ==================== UNIVERSAL HANDLER - SEMUA COMMAND LENGKAP ====================
 @bot.on(events.NewMessage)
@@ -413,16 +375,15 @@ async def universal_handler(event):
 
     # 🎯 TEST & INFO
     if text.startswith('/start'):
-        await event.reply("🔥 **JINX BOT ULTIMATE FIXED WITH LIVE STATUS AKTIF!**\nKetik `/menu` untuk semua command!")
+        await event.reply("🔥 **JINX BOT ULTIMATE FIXED - NO AUTO RESTART AKTIF!**\nKetik `/menu` untuk semua command!")
     
     elif text.startswith('/menu'):
         menu = """
-**🔥 JINX BOT ULTIMATE - LIVE STATUS + ENHANCED SESSION MANAGEMENT**
+**🔥 JINX BOT ULTIMATE - NO AUTO RESTART**
 
 **📊 LIVE STATUS COMMANDS:**
-`/live_status` - Lihat real-time status semua sessions
-`/check_session nama` - Check status session tertentu  
-`/auto_check` - Auto check & repair sessions yang mati
+`/live_status` - Lihat status semua sessions
+`/check_session nama` - Check session tertentu  
 `/session_stats` - Lihat performance statistics
 `/restart_sessions` - Restart semua sessions
 
@@ -495,7 +456,7 @@ async def universal_handler(event):
         await event.reply(menu)
 
     elif text.startswith('/test'):
-        await event.reply("✅ **BOT ULTIMATE FIXED WITH LIVE STATUS WORKING!** Semua systems go!")
+        await event.reply("✅ **BOT ULTIMATE FIXED - NO AUTO RESTART WORKING!**")
 
     elif text.startswith('/restart'):
         await event.reply("🔄 **RESTARTING CLIENTS...**")
@@ -1236,7 +1197,7 @@ async def universal_handler(event):
         restart_count = 0
         for account_name in list(session_manager.account_clients.keys()):
             try:
-                await session_manager.force_reconnect(account_name)
+                await session_manager.safe_restart(account_name)
                 restart_count += 1
             except Exception as e:
                 print(f"Error restarting {account_name}: {e}")
@@ -1249,7 +1210,7 @@ async def universal_handler(event):
 # ==================== SPAM LOOP ====================
 async def spam_loop():
     global spam_task
-    print("🚀 ENHANCED SPAM LOOP STARTED WITH SESSION MANAGEMENT")
+    print("🚀 SPAM LOOP STARTED")
     
     while data['global_spam_running'] or any(data['individual_spam'].values()):
         try:
@@ -1269,7 +1230,6 @@ async def spam_loop():
             
             for account_ref, session_string in accounts_to_spam:
                 account_name = account_ref
-                
                 try:
                     if account_name == 'master':
                         if data['master_use_custom_pesan'] and data['master_custom_pesan']:
@@ -1302,7 +1262,7 @@ async def spam_loop():
                     await asyncio.sleep(session_manager.calculate_smart_delay(account_name))
                     
                 except Exception as e:
-                    print(f"💀 [{account_name} ACCOUNT PROCESSING ERROR]: {e}")
+                    print(f"💀 [{account_name} ACCOUNT ERROR]: {e}")
                     continue
             
             await asyncio.sleep(10)
@@ -1314,7 +1274,7 @@ async def spam_loop():
 # ==================== FORWARD LOOP ====================
 async def forward_loop():
     global forward_task
-    print("🔄 ENHANCED FORWARD LOOP STARTED WITH SESSION MANAGEMENT")
+    print("🔄 FORWARD LOOP STARTED")
     
     while data['forward_running'] or any(data['individual_forward'].values()):
         try:
@@ -1334,7 +1294,6 @@ async def forward_loop():
             
             for account_ref, session_string in accounts_to_forward:
                 account_name = account_ref
-                
                 try:
                     if account_name == 'master':
                         target_groups = data['master_target_groups'] if data['master_target_groups'] else data['groups']
@@ -1348,12 +1307,21 @@ async def forward_loop():
                     for channel in data['forward_channels']:
                         try:
                             client = await session_manager.get_client(account_name, session_string)
-                            
+                            messages = []
                             async for message in client.iter_messages(channel, limit=1):
+                                if message and not message.empty and message.text:
+                                    messages.append(message)
+                                    break
+                            
+                            if not messages:
+                                continue
+                            
+                            for message in messages:
                                 for grup in target_groups:
                                     try:
-                                        await session_manager.safe_forward_messages(account_name, grup, message, session_string)
-                                        print(f"✅ [{account_name} FORWARD] {channel} → {grup}")
+                                        if message and hasattr(message, 'text') and message.text:
+                                            await session_manager.safe_forward_messages(account_name, grup, message, session_string)
+                                            print(f"✅ [{account_name} FORWARD] {channel} → {grup}")
                                     except Exception as e:
                                         print(f"💀 [{account_name} FORWARD ERROR] {grup}: {e}")
                                 
@@ -1365,7 +1333,7 @@ async def forward_loop():
                     await asyncio.sleep(10)
                     
                 except Exception as e:
-                    print(f"💀 [{account_name} FORWARD PROCESSING ERROR]: {e}")
+                    print(f"💀 [{account_name} FORWARD ERROR]: {e}")
                     continue
             
             await asyncio.sleep(data['master_delay'])
@@ -1376,12 +1344,10 @@ async def forward_loop():
 
 # ==================== UTILITY FUNCTIONS ====================
 async def restart_all_clients():
-    """Restart semua Telegram client untuk handle error"""
     try:
         for account_name in list(session_manager.account_clients.keys()):
-            await session_manager.force_reconnect(account_name)
-        
-        print("✅ ALL CLIENTS RESTARTED AFTER ERROR")
+            await session_manager.safe_restart(account_name)
+        print("✅ ALL CLIENTS RESTARTED")
         return True
     except Exception as e:
         print(f"💀 RESTART FAILED: {e}")
@@ -1390,13 +1356,14 @@ async def restart_all_clients():
 async def start_cleanup_task():
     """Start periodic cleanup task"""
     global cleanup_task
-    # cleanup_task = asyncio.create_task(session_manager.periodic_cleanup())  # ⚡ COMMENT BARIS INI
-    print("🧹 PERIODIC CLEANUP DISABLED FOR TESTING")  # ⚡ EDIT PESAN INI
+    # ⚡ CLEANUP DISABLED - NO AUTO RESTART
+    # cleanup_task = asyncio.create_task(session_manager.periodic_cleanup())
+    print("🧹 PERIODIC CLEANUP DISABLED - NO AUTO RESTART")
 
 # ==================== MAIN START ====================
 async def main():
     """Main startup function"""
-    print("🚀 STARTING JINX BOT WITH LIVE STATUS MONITORING...")
+    print("🚀 STARTING JINX BOT - NO AUTO RESTART...")
     
     try:
         # Start bot
@@ -1404,10 +1371,7 @@ async def main():
         me = await bot.get_me()
         print(f"✅ BOT STARTED: @{me.username}")
         
-        # Kirim startup message
-        await bot.send_message('me', '🤖 JINX BOT ULTIMATE AKTIF!')
-        
-        # Start cleanup task
+        # Start cleanup task (disabled)
         await start_cleanup_task()
         
         print("🎯 BOT READY! Waiting for commands...")
@@ -1417,7 +1381,6 @@ async def main():
         
     except Exception as e:
         print(f"💀 MAIN ERROR: {e}")
-        # Restart after error
         await asyncio.sleep(10)
         await main()
 
