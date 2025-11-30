@@ -1,4 +1,4 @@
-# JINX BOT MULTI-AKUN - AUTO EMOJI SIMPLE VERSION
+# JINX BOT MULTI-AKUN - FULL FIXED VERSION
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import os, asyncio, random, re
@@ -388,7 +388,7 @@ async def delete_pesan(event):
     else:
         await event.reply("❌ Pesan tidak ditemukan!")
 
-# TAMBAH GRUP
+# TAMBAH GRUP KE AKUN TERTENTU
 @bot.on(events.NewMessage(pattern='/addgrup'))
 async def addgrup_akun(event):
     parsed = parse_command(event.raw_text, 3)
@@ -410,7 +410,7 @@ async def addgrup_akun(event):
     else:
         await event.reply("❌ Sudah ada!")
 
-# DELETE GRUP
+# DELETE GRUP DARI AKUN
 @bot.on(events.NewMessage(pattern='/delete_grup'))
 async def delete_grup_akun(event):
     parsed = parse_command(event.raw_text, 3)
@@ -432,7 +432,7 @@ async def delete_grup_akun(event):
     else:
         await event.reply("❌ Grup tidak ditemukan!")
 
-# TAMBAH CHANNEL FORWARD
+# TAMBAH CHANNEL FORWARD KE AKUN TERTENTU
 @bot.on(events.NewMessage(pattern='/forward_add'))
 async def forward_add_akun(event):
     parsed = parse_command(event.raw_text, 3)
@@ -454,7 +454,7 @@ async def forward_add_akun(event):
     else:
         await event.reply("❌ Channel sudah ada!")
 
-# LIST CHANNEL FORWARD
+# LIST CHANNEL FORWARD AKUN TERTENTU
 @bot.on(events.NewMessage(pattern='/forward_list'))
 async def forward_list_akun(event):
     parsed = parse_command(event.raw_text, 2)
@@ -475,7 +475,7 @@ async def forward_list_akun(event):
         txt = f"❌ BELUM ADA CHANNEL FORWARD UNTUK {nama_akun}!"
     await event.reply(txt)
 
-# SPAM ON/OFF
+# SPAM ON/OFF PER AKUN
 @bot.on(events.NewMessage(pattern='/spam_on'))
 async def spam_on_akun(event):
     parsed = parse_command(event.raw_text, 2)
@@ -520,7 +520,7 @@ async def spam_off_akun(event):
     else:
         await event.reply(f"❌ SPAM {nama_akun} BELUM JALAN!")
 
-# FORWARD ON/OFF
+# FORWARD ON/OFF PER AKUN
 @bot.on(events.NewMessage(pattern='/forward_on'))
 async def forward_on_akun(event):
     parsed = parse_command(event.raw_text, 2)
@@ -617,7 +617,7 @@ async def setdelay_forward_akun(event):
     else:
         await event.reply("❌ Delay harus antara 10-300 detik")
 
-# SET JITTER
+# SET JITTER PER AKUN
 @bot.on(events.NewMessage(pattern='/setjitter'))
 async def setjitter_akun(event):
     parsed = parse_command(event.raw_text, 3)
@@ -643,7 +643,7 @@ async def setjitter_akun(event):
     else:
         await event.reply("❌ Jitter harus antara 0-50 detik")
 
-# CEK AKUN
+# CEK SEMUA AKUN YANG AKTIF
 @bot.on(events.NewMessage(pattern='/cek_akun'))
 async def cek_akun(event):
     if not akun_tambahan and not akun_data["utama"]["groups"]:
@@ -678,7 +678,7 @@ async def cek_akun(event):
     
     await event.reply(txt)
 
-# FITUR LEGACY UNTUK AKUN UTAMA
+# FITUR LEGACY UNTUK AKUN UTAMA - DENGAN FIX BUG SESSION STRING
 @bot.on(events.NewMessage(pattern='/add'))
 async def add_legacy(event):
     parsed = parse_command(event.raw_text, 2)
@@ -687,6 +687,17 @@ async def add_legacy(event):
         return
         
     grup = parsed[1]
+    
+    # FIX BUG: CEK JIKA INI SESSION STRING (PANJANG BANGET)
+    if len(grup) > 100 or "=" in grup or "-" in grup:
+        await event.reply("❌ Itu kayanya session string! Pake: /add_akun nama_akun session_string")
+        return
+    
+    # CEK JIKA BUKAN FORMAT GRUP YANG BENER
+    if not (grup.startswith('@') or grup.isdigit()):
+        await event.reply("❌ Format grup harus @username atau ID angka!")
+        return
+    
     if grup not in akun_data["utama"]['groups']:
         akun_data["utama"]['groups'].append(grup)
         await event.reply(f"✅ {grup} berhasil ditambah ke akun UTAMA!\n📊 Total: {len(akun_data['utama']['groups'])} grup")
@@ -800,11 +811,6 @@ FITUR AUTO EMOJI:
 /test_emoji
 → Test generator emoji
 
-CONTOH:
-────────────────────
-/addpesan_emoji utama JOIN GRUP KAMI
-→ Hasil: 🔥 💀 JOIN GRUP KAMI 😈 ⚡
-
 FITUR MULTI-AKUN:
 ────────────────────
 /add_akun nama_session string_session
@@ -835,10 +841,11 @@ FITUR LEGACY (AKUN UTAMA):
 /forward_off
 /status
 
-💀 SEMUA COMMAND SUPPORT PESAN PANJANG!"""
+💀 SEMUA COMMAND SUPPORT PESAN PANJANG!
+🔒 FIXED BUG SESSION STRING DETECTION!"""
     
     await event.reply(menu)
 
-print("🔥 JINX BOT AUTO EMOJI SIMPLE VERSION STARTED!")
-print("💀 Support pesan panjang & auto emoji system!")
+print("🔥 JINX BOT FULL FIXED VERSION STARTED!")
+print("💀 Support pesan panjang & fixed session string bug!")
 bot.run_until_disconnected()
