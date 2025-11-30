@@ -1,4 +1,4 @@
-# JINX BOT MULTI-AKUN - FULL FIXED VERSION
+# JINX BOT MULTI-AKUN - FULL FIXED NO DOUBLE RESPONSE
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import os, asyncio, random, re
@@ -59,7 +59,7 @@ akun_data = {
         "groups": [],
         "pesan_list": ["JOIN @Info_Scammer_Shell2", "REKBER ON!!", "OPEN PEMBELAJARAN SHELL", "PM @jktblackhat UNTUK TOOLS"],
         "use_random": True,
-        "auto_emoji": False,  # FITUR AUTO EMOJI
+        "auto_emoji": False,
         "delay": 30,
         "forward_delay": 60,
         "jitter": 10,
@@ -86,11 +86,9 @@ async def spam_loop(nama_akun):
     last_pesan = None
     
     while data['spam_running']:
-        # PILIH PESAN DARI LIST
         if data['pesan_list']:
             pesan_dasar = random.choice(data['pesan_list'])
             
-            # JIKA AUTO EMOJI NYALA, TAMBAH EMOJI
             if data.get('auto_emoji', False):
                 pesan = add_emoji_to_message(pesan_dasar)
             else:
@@ -106,7 +104,6 @@ async def spam_loop(nama_akun):
             try:
                 await client.send_message(grup, pesan, silent=True)
                 print(f"[{nama_akun}] SPAM → {grup}")
-                print(f"[{nama_akun}] PESAN: {pesan}")
                 await asyncio.sleep(1)
             except Exception as e:
                 print(f"[ERROR SPAM {nama_akun}] {grup}: {e}")
@@ -128,26 +125,21 @@ async def spam_forward_loop(nama_akun):
         
         for channel in data['forward_channels']:
             try:
-                print(f"🔄 [{nama_akun}] PROCESSING CHANNEL: {channel}")
                 async for message in client.iter_messages(channel, limit=3):
                     for grup in data['groups']:
                         try:
                             await client.forward_messages(grup, message)
-                            print(f"✅ [{nama_akun}] SPAM FORWARD → {grup}")
                             forward_delay = data.get('forward_delay', data['delay'])
                             await asyncio.sleep(forward_delay)
                         except Exception as e:
-                            print(f"❌ [{nama_akun}] GAGAL SPAM FORWARD KE {grup}: {e}")
                             continue
                 
                 await asyncio.sleep(10)
                 
             except Exception as e:
-                print(f"❌ [{nama_akun}] GAGAL AKSES CHANNEL {channel}: {e}")
                 continue
         
         forward_delay = data.get('forward_delay', data['delay'])
-        print(f"♻️ [{nama_akun}] SPAM FORWARD LOOP SELESAI, TUNGGU {forward_delay} DETIK")
         await asyncio.sleep(forward_delay)
 
 # FUNGSI BANTUAN
@@ -164,8 +156,56 @@ async def get_client(nama_akun):
         return TelegramClient(StringSession(session_string), API_ID, API_HASH)
     return None
 
-# FITUR MULTI-AKUN
-@bot.on(events.NewMessage(pattern='/add_akun'))
+# ========== HANDLER DENGAN EXACT PATTERN MATCHING ==========
+
+@bot.on(events.NewMessage(pattern='^/start$'))
+async def start(event):
+    menu = """🔥 JINX BOT - NO DOUBLE RESPONSE 🔥
+
+FITUR AUTO EMOJI:
+────────────────────
+/addpesan_emoji nama_akun pesan_anda
+/addpesan nama_akun pesan_anda  
+/auto_emoji_on nama_akun
+/auto_emoji_off nama_akun
+/convert_emoji nama_akun
+/test_emoji
+
+FITUR MULTI-AKUN:
+────────────────────
+/add_akun nama_session string_session
+/cek_akun
+/addgrup nama_akun @grup
+/delete_grup nama_akun @grup
+/listpesan nama_akun
+/delete_pesan nama_akun text_pesan
+/forward_add nama_akun @channel
+/forward_list nama_akun
+/spam_on nama_akun
+/spam_off nama_akun
+/forward_on nama_akun
+/forward_off nama_akun
+/setdelay nama_akun 60
+/setdelay_forward nama_akun 120
+/setjitter nama_akun 10
+
+FITUR LEGACY (AKUN UTAMA):
+────────────────────
+/add @grup
+/del @grup
+/list
+/startspam
+/stopspam
+/forward_add @channel
+/forward_on
+/forward_off
+/status
+
+💀 NO DOUBLE RESPONSE - EXACT PATTERN MATCHING!"""
+    
+    await event.reply(menu)
+
+@bot.on(events.NewMessage(pattern='^/add_akun '))
 async def add_akun(event):
     parsed = parse_command(event.raw_text, 3)
     if not parsed:
@@ -204,10 +244,48 @@ async def add_akun(event):
     except Exception as e:
         await event.reply(f"❌ GAGAL MENAMBAH AKUN: {str(e)}")
 
-# ADD PESAN DENGAN AUTO EMOJI
-@bot.on(events.NewMessage(pattern='/addpesan_emoji'))
+@bot.on(events.NewMessage(pattern='^/addgrup '))
+async def addgrup_akun(event):
+    parsed = parse_command(event.raw_text, 3)
+    if not parsed:
+        await event.reply("❌ Format: /addgrup nama_akun @grup")
+        return
+        
+    nama_akun = parsed[1]
+    grup = parsed[2]
+    
+    data = get_akun_data(nama_akun)
+    if not data:
+        await event.reply(f"❌ Akun {nama_akun} tidak ditemukan!")
+        return
+    
+    if grup not in data['groups']:
+        data['groups'].append(grup)
+        await event.reply(f"✅ {grup} berhasil ditambah ke akun {nama_akun}!\n📊 Total: {len(data['groups'])} grup")
+    else:
+        await event.reply("❌ Sudah ada!")
+
+@bot.on(events.NewMessage(pattern='^/add '))
+async def add_legacy(event):
+    parsed = parse_command(event.raw_text, 2)
+    if not parsed:
+        await event.reply("❌ Format: /add @grup")
+        return
+        
+    grup = parsed[1]
+    
+    if not (grup.startswith('@') or grup.lstrip('-').isdigit()):
+        await event.reply("❌ Format grup harus @username atau ID angka!")
+        return
+    
+    if grup not in akun_data["utama"]['groups']:
+        akun_data["utama"]['groups'].append(grup)
+        await event.reply(f"✅ {grup} berhasil ditambah ke akun UTAMA!\n📊 Total: {len(akun_data['utama']['groups'])} grup")
+    else:
+        await event.reply("❌ Sudah ada!")
+
+@bot.on(events.NewMessage(pattern='^/addpesan_emoji '))
 async def addpesan_emoji(event):
-    """Tambah pesan dengan auto emoji"""
     parsed = parse_command(event.raw_text, 3)
     if not parsed:
         await event.reply("❌ Format: /addpesan_emoji nama_akun pesan_anda")
@@ -221,10 +299,8 @@ async def addpesan_emoji(event):
         await event.reply(f"❌ Akun {nama_akun} tidak ditemukan!")
         return
     
-    # AUTO TAMBAH EMOJI KE PESAN
     pesan_dengan_emoji = add_emoji_to_message(pesan)
     
-    # Cek duplikat
     if any(pesan_dengan_emoji == existing_pesan for existing_pesan in data['pesan_list']):
         await event.reply("❌ Pesan sudah ada di list!")
         return
@@ -232,10 +308,8 @@ async def addpesan_emoji(event):
     data['pesan_list'].append(pesan_dengan_emoji)
     await event.reply(f"✅ Pesan dengan AUTO EMOJI berhasil ditambah di akun {nama_akun}!\n\n📝 Pesan:\n{pesan_dengan_emoji}")
 
-# ADD PESAN TANPA EMOJI
-@bot.on(events.NewMessage(pattern='/addpesan'))
+@bot.on(events.NewMessage(pattern='^/addpesan '))
 async def addpesan_normal(event):
-    """Tambah pesan tanpa auto emoji"""
     parsed = parse_command(event.raw_text, 3)
     if not parsed:
         await event.reply("❌ Format: /addpesan nama_akun pesan_anda")
@@ -256,10 +330,8 @@ async def addpesan_normal(event):
     data['pesan_list'].append(pesan)
     await event.reply(f"✅ Pesan berhasil ditambah di akun {nama_akun}!\n\n📝 Pesan:\n{pesan}")
 
-# CONVERT SEMUA PESAN LAMA KE EMOJI
-@bot.on(events.NewMessage(pattern='/convert_emoji'))
+@bot.on(events.NewMessage(pattern='^/convert_emoji '))
 async def convert_emoji(event):
-    """Convert semua pesan lama ke versi dengan emoji"""
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
         await event.reply("❌ Format: /convert_emoji nama_akun")
@@ -280,7 +352,6 @@ async def convert_emoji(event):
     new_pesan_list = []
     
     for pesan in data['pesan_list']:
-        # Skip jika sudah ada emoji
         if any(char in pesan for char in ['🔥', '😈', '💀', '💰', '🤑', '💎', '⭐', '✨', '🐍', '🕷️', '🔫', '💣']):
             new_pesan_list.append(pesan)
         else:
@@ -292,8 +363,7 @@ async def convert_emoji(event):
     
     await event.reply(f"✅ Converted {converted_count} pesan ke versi dengan emoji!\n\nContoh hasil:\n{new_pesan_list[0]}")
 
-# AUTO EMOJI MODE ON/OFF
-@bot.on(events.NewMessage(pattern='/auto_emoji_on'))
+@bot.on(events.NewMessage(pattern='^/auto_emoji_on '))
 async def auto_emoji_on(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -310,7 +380,7 @@ async def auto_emoji_on(event):
     data['auto_emoji'] = True
     await event.reply(f"🔥 AUTO EMOJI MODE Dinyalakan untuk {nama_akun}!\n\nSetiap pesan spam akan otomatis ditambah emoji random!")
 
-@bot.on(events.NewMessage(pattern='/auto_emoji_off'))
+@bot.on(events.NewMessage(pattern='^/auto_emoji_off '))
 async def auto_emoji_off(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -327,10 +397,8 @@ async def auto_emoji_off(event):
     data['auto_emoji'] = False
     await event.reply(f"🛑 AUTO EMOJI MODE Dimatikan untuk {nama_akun}!\n\nPesan spam akan menggunakan teks biasa.")
 
-# TEST EMOJI GENERATOR
-@bot.on(events.NewMessage(pattern='/test_emoji'))
+@bot.on(events.NewMessage(pattern='^/test_emoji$'))
 async def test_emoji(event):
-    """Test generate random emoji message"""
     test_messages = []
     for i in range(3):
         pesan_contoh = f"PESAN CONTOH {i+1} UNTUK TEST EMOJI"
@@ -339,8 +407,7 @@ async def test_emoji(event):
     
     await event.reply("🔥 TEST AUTO EMOJI:\n\n" + "\n".join(test_messages))
 
-# LIST PESAN
-@bot.on(events.NewMessage(pattern='/listpesan'))
+@bot.on(events.NewMessage(pattern='^/listpesan '))
 async def listpesan_akun(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -360,8 +427,7 @@ async def listpesan_akun(event):
         txt = f"❌ BELUM ADA PESAN UNTUK {nama_akun}!"
     await event.reply(txt)
 
-# DELETE PESAN
-@bot.on(events.NewMessage(pattern='/delete_pesan'))
+@bot.on(events.NewMessage(pattern='^/delete_pesan '))
 async def delete_pesan(event):
     parsed = parse_command(event.raw_text, 3)
     if not parsed:
@@ -388,30 +454,7 @@ async def delete_pesan(event):
     else:
         await event.reply("❌ Pesan tidak ditemukan!")
 
-# TAMBAH GRUP KE AKUN TERTENTU
-@bot.on(events.NewMessage(pattern='/addgrup'))
-async def addgrup_akun(event):
-    parsed = parse_command(event.raw_text, 3)
-    if not parsed:
-        await event.reply("❌ Format: /addgrup nama_akun @grup")
-        return
-        
-    nama_akun = parsed[1]
-    grup = parsed[2]
-    
-    data = get_akun_data(nama_akun)
-    if not data:
-        await event.reply(f"❌ Akun {nama_akun} tidak ditemukan!")
-        return
-    
-    if grup not in data['groups']:
-        data['groups'].append(grup)
-        await event.reply(f"✅ {grup} berhasil ditambah ke akun {nama_akun}!\n📊 Total: {len(data['groups'])} grup")
-    else:
-        await event.reply("❌ Sudah ada!")
-
-# DELETE GRUP DARI AKUN
-@bot.on(events.NewMessage(pattern='/delete_grup'))
+@bot.on(events.NewMessage(pattern='^/delete_grup '))
 async def delete_grup_akun(event):
     parsed = parse_command(event.raw_text, 3)
     if not parsed:
@@ -432,8 +475,7 @@ async def delete_grup_akun(event):
     else:
         await event.reply("❌ Grup tidak ditemukan!")
 
-# TAMBAH CHANNEL FORWARD KE AKUN TERTENTU
-@bot.on(events.NewMessage(pattern='/forward_add'))
+@bot.on(events.NewMessage(pattern='^/forward_add '))
 async def forward_add_akun(event):
     parsed = parse_command(event.raw_text, 3)
     if not parsed:
@@ -454,8 +496,7 @@ async def forward_add_akun(event):
     else:
         await event.reply("❌ Channel sudah ada!")
 
-# LIST CHANNEL FORWARD AKUN TERTENTU
-@bot.on(events.NewMessage(pattern='/forward_list'))
+@bot.on(events.NewMessage(pattern='^/forward_list '))
 async def forward_list_akun(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -475,8 +516,7 @@ async def forward_list_akun(event):
         txt = f"❌ BELUM ADA CHANNEL FORWARD UNTUK {nama_akun}!"
     await event.reply(txt)
 
-# SPAM ON/OFF PER AKUN
-@bot.on(events.NewMessage(pattern='/spam_on'))
+@bot.on(events.NewMessage(pattern='^/spam_on '))
 async def spam_on_akun(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -498,7 +538,7 @@ async def spam_on_akun(event):
     else:
         await event.reply(f"❌ SPAM {nama_akun} SUDAH JALAN!")
 
-@bot.on(events.NewMessage(pattern='/spam_off'))
+@bot.on(events.NewMessage(pattern='^/spam_off '))
 async def spam_off_akun(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -520,8 +560,7 @@ async def spam_off_akun(event):
     else:
         await event.reply(f"❌ SPAM {nama_akun} BELUM JALAN!")
 
-# FORWARD ON/OFF PER AKUN
-@bot.on(events.NewMessage(pattern='/forward_on'))
+@bot.on(events.NewMessage(pattern='^/forward_on '))
 async def forward_on_akun(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -543,7 +582,7 @@ async def forward_on_akun(event):
     else:
         await event.reply(f"❌ SPAM FORWARD {nama_akun} SUDAH NYALA!")
 
-@bot.on(events.NewMessage(pattern='/forward_off'))
+@bot.on(events.NewMessage(pattern='^/forward_off '))
 async def forward_off_akun(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -565,8 +604,7 @@ async def forward_off_akun(event):
     else:
         await event.reply(f"❌ SPAM FORWARD {nama_akun} SUDAH MATI!")
 
-# SET DELAY SPAM BIASA
-@bot.on(events.NewMessage(pattern='/setdelay'))
+@bot.on(events.NewMessage(pattern='^/setdelay '))
 async def setdelay_akun(event):
     parsed = parse_command(event.raw_text, 3)
     if not parsed:
@@ -591,8 +629,7 @@ async def setdelay_akun(event):
     else:
         await event.reply("❌ Delay harus antara 10-300 detik")
 
-# SET DELAY SPAM FORWARD
-@bot.on(events.NewMessage(pattern='/setdelay_forward'))
+@bot.on(events.NewMessage(pattern='^/setdelay_forward '))
 async def setdelay_forward_akun(event):
     parsed = parse_command(event.raw_text, 3)
     if not parsed:
@@ -617,8 +654,7 @@ async def setdelay_forward_akun(event):
     else:
         await event.reply("❌ Delay harus antara 10-300 detik")
 
-# SET JITTER PER AKUN
-@bot.on(events.NewMessage(pattern='/setjitter'))
+@bot.on(events.NewMessage(pattern='^/setjitter '))
 async def setjitter_akun(event):
     parsed = parse_command(event.raw_text, 3)
     if not parsed:
@@ -643,8 +679,7 @@ async def setjitter_akun(event):
     else:
         await event.reply("❌ Jitter harus antara 0-50 detik")
 
-# CEK SEMUA AKUN YANG AKTIF
-@bot.on(events.NewMessage(pattern='/cek_akun'))
+@bot.on(events.NewMessage(pattern='^/cek_akun$'))
 async def cek_akun(event):
     if not akun_tambahan and not akun_data["utama"]["groups"]:
         await event.reply("❌ BELUM ADA AKUN YANG DITAMBAH!")
@@ -652,7 +687,6 @@ async def cek_akun(event):
     
     txt = "📊 DAFTAR AKUN AKTIF:\n\n"
     
-    # Akun utama
     utama_data = akun_data["utama"]
     txt += f"👑 UTAMA:\n"
     txt += f"• Grup: {len(utama_data['groups'])}\n"
@@ -664,7 +698,6 @@ async def cek_akun(event):
     txt += f"• Delay Spam: {utama_data['delay']}s\n"
     txt += f"• Delay Forward: {utama_data.get('forward_delay', utama_data['delay'])}s\n\n"
     
-    # Akun tambahan
     for nama, data in akun_tambahan.items():
         txt += f"🔧 {nama.upper()}:\n"
         txt += f"• Grup: {len(data['groups'])}\n"
@@ -678,33 +711,7 @@ async def cek_akun(event):
     
     await event.reply(txt)
 
-# FITUR LEGACY UNTUK AKUN UTAMA - DENGAN FIX BUG SESSION STRING
-@bot.on(events.NewMessage(pattern='/add'))
-async def add_legacy(event):
-    parsed = parse_command(event.raw_text, 2)
-    if not parsed:
-        await event.reply("❌ Format: /add @grup")
-        return
-        
-    grup = parsed[1]
-    
-    # FIX BUG: CEK JIKA INI SESSION STRING (PANJANG BANGET)
-    if len(grup) > 100 or "=" in grup or "-" in grup:
-        await event.reply("❌ Itu kayanya session string! Pake: /add_akun nama_akun session_string")
-        return
-    
-    # CEK JIKA BUKAN FORMAT GRUP YANG BENER
-    if not (grup.startswith('@') or grup.isdigit()):
-        await event.reply("❌ Format grup harus @username atau ID angka!")
-        return
-    
-    if grup not in akun_data["utama"]['groups']:
-        akun_data["utama"]['groups'].append(grup)
-        await event.reply(f"✅ {grup} berhasil ditambah ke akun UTAMA!\n📊 Total: {len(akun_data['utama']['groups'])} grup")
-    else:
-        await event.reply("❌ Sudah ada!")
-
-@bot.on(events.NewMessage(pattern='/del'))
+@bot.on(events.NewMessage(pattern='^/del '))
 async def delete_legacy(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -718,13 +725,13 @@ async def delete_legacy(event):
     else:
         await event.reply("❌ Grup tidak ditemukan!")
 
-@bot.on(events.NewMessage(pattern='/list'))
+@bot.on(events.NewMessage(pattern='^/list$'))
 async def list_legacy(event):
     groups = akun_data["utama"]['groups']
     txt = "📋 GRUP AKTIF UTAMA:\n\n" + "\n".join(groups) if groups else "❌ KOSONG"
     await event.reply(txt)
 
-@bot.on(events.NewMessage(pattern='/startspam'))
+@bot.on(events.NewMessage(pattern='^/startspam$'))
 async def startspam_legacy(event):
     if not akun_data["utama"]['spam_running']:
         akun_data["utama"]['spam_running'] = True
@@ -734,7 +741,7 @@ async def startspam_legacy(event):
     else:
         await event.reply("❌ SPAM UTAMA SUDAH JALAN!")
 
-@bot.on(events.NewMessage(pattern='/stopspam'))
+@bot.on(events.NewMessage(pattern='^/stopspam$'))
 async def stopspam_legacy(event):
     if akun_data["utama"]['spam_running']:
         akun_data["utama"]['spam_running'] = False
@@ -744,7 +751,7 @@ async def stopspam_legacy(event):
     else:
         await event.reply("❌ SPAM UTAMA BELUM JALAN!")
 
-@bot.on(events.NewMessage(pattern='/forward_add'))
+@bot.on(events.NewMessage(pattern='^/forward_add$'))
 async def forward_add_legacy(event):
     parsed = parse_command(event.raw_text, 2)
     if not parsed:
@@ -758,7 +765,7 @@ async def forward_add_legacy(event):
     else:
         await event.reply("❌ Channel sudah ada!")
 
-@bot.on(events.NewMessage(pattern='/forward_on'))
+@bot.on(events.NewMessage(pattern='^/forward_on$'))
 async def forward_on_legacy(event):
     if not akun_data["utama"]['forward_running']:
         akun_data["utama"]['forward_running'] = True
@@ -768,7 +775,7 @@ async def forward_on_legacy(event):
     else:
         await event.reply("❌ SPAM FORWARD UTAMA SUDAH NYALA!")
 
-@bot.on(events.NewMessage(pattern='/forward_off'))
+@bot.on(events.NewMessage(pattern='^/forward_off$'))
 async def forward_off_legacy(event):
     if akun_data["utama"]['forward_running']:
         akun_data["utama"]['forward_running'] = False
@@ -778,7 +785,7 @@ async def forward_off_legacy(event):
     else:
         await event.reply("❌ SPAM FORWARD UTAMA SUDAH MATI!")
 
-@bot.on(events.NewMessage(pattern='/status'))
+@bot.on(events.NewMessage(pattern='^/status$'))
 async def status_legacy(event):
     data = akun_data["utama"]
     forward_delay = data.get('forward_delay', data['delay'])
@@ -786,66 +793,5 @@ async def status_legacy(event):
     txt = f"📊 AKUN UTAMA STATUS:\n\n🔄 SPAM: {'🟢 JALAN' if data['spam_running'] else '🔴 MATI'}\n📢 FORWARD: {'🟢 JALAN' if data['forward_running'] else '🔴 MATI'}\n🎯 AUTO EMOJI: {auto_emoji_status}\n📋 GRUP: {len(data['groups'])}\n📢 CHANNEL: {len(data['forward_channels'])}\n💬 PESAN: {len(data['pesan_list'])}\n⏱️ DELAY SPAM: {data['delay']}s\n⏱️ DELAY FORWARD: {forward_delay}s"
     await event.reply(txt)
 
-# MENU UTAMA
-@bot.on(events.NewMessage(pattern='/start'))
-async def start(event):
-    menu = """🔥 JINX BOT - AUTO EMOJI SIMPLE SYSTEM 🔥
-
-FITUR AUTO EMOJI:
-────────────────────
-/addpesan_emoji nama_akun pesan_anda
-→ Auto tambah emoji ke pesan manual
-
-/addpesan nama_akun pesan_anda  
-→ Tambah pesan tanpa emoji (biasa)
-
-/auto_emoji_on nama_akun
-→ Auto tambah emoji ke semua pesan spam
-
-/auto_emoji_off nama_akun
-→ Matikan auto emoji
-
-/convert_emoji nama_akun
-→ Convert semua pesan lama ke versi emoji
-
-/test_emoji
-→ Test generator emoji
-
-FITUR MULTI-AKUN:
-────────────────────
-/add_akun nama_session string_session
-/cek_akun
-/addgrup nama_akun @grup
-/delete_grup nama_akun @grup
-/listpesan nama_akun
-/delete_pesan nama_akun text_pesan
-/forward_add nama_akun @channel
-/forward_list nama_akun
-/spam_on nama_akun
-/spam_off nama_akun
-/forward_on nama_akun
-/forward_off nama_akun
-/setdelay nama_akun 60
-/setdelay_forward nama_akun 120
-/setjitter nama_akun 10
-
-FITUR LEGACY (AKUN UTAMA):
-────────────────────
-/add @grup
-/del @grup
-/list
-/startspam
-/stopspam
-/forward_add @channel
-/forward_on
-/forward_off
-/status
-
-💀 SEMUA COMMAND SUPPORT PESAN PANJANG!
-🔒 FIXED BUG SESSION STRING DETECTION!"""
-    
-    await event.reply(menu)
-
-print("🔥 JINX BOT FULL FIXED VERSION STARTED!")
-print("💀 Support pesan panjang & fixed session string bug!")
+print("🔥 JINX BOT FULL FIXED - NO DOUBLE RESPONSE STARTED!")
 bot.run_until_disconnected()
